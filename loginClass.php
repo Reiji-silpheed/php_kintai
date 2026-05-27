@@ -1,8 +1,8 @@
 <?php
-    require_once './dbClasss.php';
+    require_once './dbClass.php';
     class login extends dbClass{
-        public function loginCheck($employee_no,$password){
-            $result=$this->select('SELECT * FROM m_employee WHERE employee_no=:employee_no and password=:password',['employee_no'=>$employee_no,'password'=>$password]);
+        public function loginCheck($email,$password){
+            $result=$this->select('SELECT * FROM m_employee WHERE email=:email and password=:password',['email'=>$email,'password'=>$password]);
             if ($result==false){
                 return false;
             }
