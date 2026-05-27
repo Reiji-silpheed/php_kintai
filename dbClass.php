@@ -16,7 +16,7 @@ class dbClass{
     public function select($sql,$param){
         $sth=$this->connect()->prepare($sql);
         $sth->execute($param);
-        return $sth->fetch();
+        return $sth->fetchAll();
     }
     public function iud($sql,$param){
         $sth=$this->connect()->prepare($sql);

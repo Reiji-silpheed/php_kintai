@@ -5,17 +5,20 @@
     
     <title>ログイン</title>
     <?php
-        require_once './loginClass.php';
-        $error=true;
-        if(isset($_POST['mail-post']) && isset($_POST['password-post'])){
-            $login=new login();
-            if($login->loginCheck($_POST['mail-post'],$_POST['password-post'])){
-                header('Location:../jquery_kintai/kintai.html');
-            }
-            else{
-                $error=false;
-            }
+    require_once './loginClass.php';
+    require_once './messageClass.php';
+    session_start();
+    $error=new Message();
+    if(isset($_POST['mail-post']) && isset($_POST['password-post'])){
+        $login=new login();
+        if($login->loginCheck($_POST['mail-post'],$_POST['password-post'])){
+            $_SESSION['mail']=$_POST['mail-post'];
+            header('Location:./kintai.php');
         }
+        else{
+            $error->setError("メールアドレスかパスワードが間違っています");
+        }
+    }
     ?>
 </head> 
 
@@ -29,13 +32,9 @@
                     <div class="position-relative">
                         <label for="mail-post" class="form-label">メールアドレス:</label>
                         <!-- テキストに何も入力されていないとき以下のメッセージが出力されるようにした -->
-                        <input type="text" class="form-control <?php if($error==false):?> is-invalid<?php endif?>" id="mail-post" name="mail-post" aria-describedby="error"
+                        <input type="text" class="form-control <?php echo $error->invalid();?>" id="mail-post" name="mail-post" aria-describedby="error"
                             required>
-                        <?php if($error==false):?>
-                            <div id="error" class="invalid-feedback">
-                                パスワードかメールアドレスが間違っています
-                            </div>
-                        <?php endif?>
+                        <?php echo $error->getError();?>
                     </div>
                     <div>
                         <label for="password-post" class="form-label">Password:</label>
