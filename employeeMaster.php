@@ -1,3 +1,14 @@
+<?php
+    if(isset($_POST['cBtn'])){
+        header('Location:employeeMaster.php');
+    }
+    require_once './dbClass.php';
+    session_start();
+    if(isset($_SESSION['mail'])==""){
+        header('Location:./login.php');
+    }
+?>
+
 <head>
     <meta http-equiv="content-type" charset="utf-8" />
     <!-- ①：Bootstrapで使うCSSを読み込む -->
@@ -7,61 +18,12 @@
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
     <title>社員マスタ管理</title>
-    <?php
-    session_start();
-    if(isset($_SESSION['mail'])==""){
-        header('Location:./login.php');
-    }
-    if(isset($_POST['cBtn'])){
-        $_POST['number-post']="";
-        $_POST['name-post']="";
-        $_POST['mail-post']="";
-        $_POST['calendar-post']="";
-    }
-    ?>
+    
     <script>
         $(function () {
-            /* クリアボタンを押したときに、テキストを初期化した */
-            /* $(document).on("click", "#cBtn", function () {
-                $("#searchNumber").val("");
-                $("#searchName").val("");
-                $("#searchMail").val("");
-                $("#searchCalendar").val("");
-            })  */
             $("#updateBtn").prop("disabled", true);
             $("#delBtn").prop("disabled", true)
-            /* 検索ボタンを押してテキストが空だった時にエラーメッセージが出るようにした */
-            $(document).on("click", "#searchBtn", function () {
-                let isValid = true;
-                /* テキスト取得 */
-                $("#searchNumber").removeClass("is-invalid");
-                $("#searchName").removeClass("is-invalid");
-                $("#searchMail").removeClass("is-invalid");
-                $("#searchCalendar").removeClass("is-invalid");
-                const searchNumber = $("#searchNumber").val();
-                const searchName = $("#searchName").val();
-                const searchMail = $("#searchMail").val();
-                const searchCalendar = $("#searchCalendar").val();
-                if (searchNumber === "") {
-                    $("#searchNumber").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (searchName === "") {
-                    $("#searchName").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (searchMail === "") {
-                    $("#searchMail").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (searchCalendar === "") {
-                    $("#searchCalendar").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (isValid === true) {
-                    $("#searchCard").before('<div class="alert alert-warning" role="alert">検索結果がありませんでした。</div>')
-                }
-            })
+
             /* 更新ボタンを押したときに検索結果でラジオボタンのついた社員データをモーダルに表示させた */
             $(document).on("click", "#updateBtn", function () {
                 const selected = $("input[name='radio']:checked")
@@ -234,6 +196,18 @@
     <main>
         <div class="container">
             <h1>社員マスタ管理</h1>
+            <?php
+            $table=new dbClass();
+            ?>
+            <?php if(isset($_POST['searchBtn'])):?>
+                <?php $rows=$table->select('SELECT * FROM m_employee WHERE employee_no=:employee_no and employee_name=:employee_name and email=:email and start_date=:start_date',['employee_no'=>$_POST['number-post'],'employee_name'=>$_POST['name-post'],'email'=>$_POST['mail-post'],'start_date'=>$_POST['calendar-post']]);?>
+                <?php if(empty($rows)):?>
+                    <?php echo '<div class="alert alert-warning" role="alert">検索結果がありませんでした</div>'?>
+                <?php endif?>
+            <?php endif?>
+            
+           
+            
             <!-- 検索条件カード -->
             <div class="container">
                 <div class="card" id="searchCard">
@@ -248,7 +222,7 @@
                                     <div class="col-2">
                                         <label for="number-post" class="form-label">社員番号:</label>
                                         <!-- 何も入力されていないときにエラーが出るようにした -->
-                                        <input type="text" class="form-control" id="number-post" name="number-post" value="<?php if(isset($_POST['number-post'])){echo $_POST['number-post'];}?>">
+                                        <input type="text" class="form-control <?php if(isset($_POST['searchBtn'])){if(empty($_POST['number-post'])){echo 'is-invalid';}}?>" id="number-post" name="number-post" value="<?php if(isset($_POST['number-post'])){echo $_POST['number-post'];}?>">
                                         <div class="invalid-feedback">
                                             社員番号が入力されていません。
                                         </div>
@@ -256,7 +230,7 @@
 
                                     <div class="col-4">
                                         <label for="name-post" class="form-label">社員名:</label>
-                                        <input type="text" class="form-control" id="name-post" name="name-post" value="<?php if(isset($_POST['name-post'])){echo $_POST['name-post'];}?>">
+                                        <input type="text" class="form-control <?php if(isset($_POST['searchBtn'])){if(empty($_POST['name-post'])){echo 'is-invalid';}}?>" id="name-post" name="name-post" value="<?php if(isset($_POST['name-post'])){echo $_POST['name-post'];}?>">
                                         <div class="invalid-feedback">
                                             社員名が入力されていません。
                                         </div>
@@ -264,7 +238,7 @@
 
                                     <div class="col-4">
                                         <label for="mail-post" class="form-label">メールアドレス:</label>
-                                        <input type="text" class="form-control" id="mail-post" name="mail-post" value="<?php if(isset($_POST['mail-post'])){echo $_POST['mail-post'];}?>">
+                                        <input type="text" class="form-control <?php if(isset($_POST['searchBtn'])){if(empty($_POST['mail-post'])){echo 'is-invalid';}}?>" id="mail-post" name="mail-post" value="<?php if(isset($_POST['mail-post'])){echo $_POST['mail-post'];}?>">
                                         <div id="error" class="invalid-feedback">
                                             メールアドレスが入力されていません。
                                         </div>
@@ -272,7 +246,7 @@
 
                                     <div class="col-2">
                                         <label for="calendar-post" class="form-label">入社日:</label>
-                                        <input type="date" class="form-control" id="calendar-post" name="calendar-post" value="<?php if(isset($_POST['calendar-post'])){echo $_POST['calendar-post'];}?>">
+                                        <input type="date" class="form-control <?php if(isset($_POST['searchBtn'])){if(empty($_POST['calendar-post'])){echo 'is-invalid';}}?>" id="calendar-post" name="calendar-post" value="<?php if(isset($_POST['calendar-post'])){echo $_POST['calendar-post'];}?>">
                                         <div class="invalid-feedback">
                                             カレンダーが入力されていません。
                                         </div>
@@ -320,72 +294,59 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td scope="row">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="radio" id="radio1" />
-                                        </td>
-                                        <td>001</td>
-                                        <td>研修太朗</td>
-                                        <td>kensyuu.tarou@example.com</td>
-                                        <td>2020-04-01</td>
-                                    </tr>
-                                    <tr>
-                                        <td scope="row">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="radio" id="radio2" />
-                                        </td>
-                                        <td>002</td>
-                                        <td>研修次郎</td>
-                                        <td>kensyuu.jirou@example.com</td>
-                                        <td>2020-04-01</td>
-                                    </tr>
-                                    <tr>
-                                        <td scope="row">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="radio" id="radio3" />
-                                        </td>
-                                        <td>003</td>
-                                        <td>研修三朗</td>
-                                        <td>kensyuu.saburou@example.com</td>
-                                        <td>2020-04-01</td>
-                                    </tr>
-                                    <tr>
-                                        <td scope="row">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="radio" id="radio4" />
-                                        </td>
-                                        <td>004</td>
-                                        <td>研修四子</td>
-                                        <td>kensyuu.yoshiko@example.com</td>
-                                        <td>2020-04-01</td>
-                                    </tr>
-                                    <tr>
-                                        <td scope="row">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="radio" id="radio5" />
-                                        </td>
-                                        <td>005</td>
-                                        <td>研修五子</td>
-                                        <td>kensyuu.itsuko@example.com</td>
-                                        <td>2020-04-01</td>
-                                    </tr>
+                                    <?php 
+                                    $page=1;
+                                    if(isset($_GET['page'])){
+                                        if(is_numeric($_GET['page'])){
+                                            $page=(int)$_GET['page'];
+                                        }
+                                    }
+                                    else{
+                                        $page=1;
+                                    }
+
+                                    $offset=5*($page-1);
+                                    $q=$table->connect()->query("SELECT * FROM m_employee ORDER BY id LIMIT 5 OFFSET $offset");
+                                    $rows=$q->fetchAll();
+                                    if(isset($_POST['searchBtn'])){
+                                        $rows=$table->select('SELECT * FROM m_employee WHERE employee_no=:employee_no and employee_name=:employee_name and email=:email and start_date=:start_date',['employee_no'=>$_POST['number-post'],'employee_name'=>$_POST['name-post'],'email'=>$_POST['mail-post'],'start_date'=>$_POST['calendar-post']]);
+                                    }
+                                    $p=$table->connect()->query('SELECT count(id) FROM m_employee');
+                                    $lengths=$p->fetchAll();
+                                    ?>
+                                    
+                                    <?php foreach($rows as $row):?>
+                                        <tr>
+                                            <td scope="row">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="radio" id="radio<?php echo $row['id'];?>" />
+                                                </div>
+                                            </td>
+                                        <td><?php echo $row['employee_no'];?></td>
+                                        <td><?php echo $row['employee_name'];?></td>
+                                        <td><?php echo $row['email'];?></td>
+                                        <td><?php echo $row['start_date'];?></td>
+                                        </tr>   
+                                    <?php endforeach?>
                                 </tbody>
                             </table>
                         </div>
                         <!-- ページネイション -->
                         <nav class="d-flex align-items-center justify-content-center">
                             <ul class="pagination">
-                                <li class="page-item">
-                                    <a class="page-link">前</a>
+                                <li class="page-item <?php if($page==1){echo 'disabled';}?>">
+                                    <a class="page-link" href="?page=<?php echo $page-1; ?>">前</a>
                                 </li>
-                                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                <?php foreach($lengths as $length):?>
+                                    <?php for ($i=1;$i<=ceil($length['count(id)']/5);$i++):?>
+                                    <!-- href="?page=1":$_GET['page']="1"を送信 -->
+                                    <li class="page-item <?php if($page==$i){echo 'active';}?>">
+                                        <a class="page-link" href="?page=<?php echo $i;?>"><?php echo $i;?></a>
+                                    </li>
+                                    <?php endfor?>
+                                <?php endforeach?>
                                 <li class="page-item">
-                                    <a class="page-link" href="#" aria-current="page">2</a>
-                                </li>
-                                <li class="page-item"><a class="page-link" href="#">3</a></li>
-                                <li class="page-item">
-                                    <a class="page-link" href="#">次</a>
+                                    <a class="page-link" href="?page=<?php echo $page+1;?>">次</a>
                                 </li>
                             </ul>
                         </nav>
@@ -568,6 +529,5 @@
             </div>
             <!-- </div> -->
         </div>
-
     </main>
 </body>
