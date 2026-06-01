@@ -1,12 +1,87 @@
 <?php
-    if(isset($_POST['cBtn'])){
-        header('Location:employeeMaster.php');
+if(isset($_POST['cBtn'])){
+    header('Location:employeeMaster.php');
+}
+require_once './dbClass.php';
+require_once './loginClass.php';
+require_once './messageClass.php';
+session_start();
+if(isset($_SESSION['mail'])==""){
+    header('Location:./login.php');
+}
+$error=new Message();
+$table=new dbClass();
+$login=new login();
+$rows=$table->select('SELECT email FROM m_employee',[]);
+$isCommit=false;
+$emails = array_column($rows, 'email');
+
+#登録モーダル
+if(isset($_POST['newAppModal-post'])){
+    $table->begin();
+    try{
+        if(empty($_POST['number-new-post'])){
+            $error->setError('new-number',"社員番号が入力されていません");
+        }
+        if(empty($_POST['name-new-post'])){
+            $error->setError('new-name',"社員名が入力されていません");
+        }
+        if(empty($_POST['calendar-new-post'])){
+            $error->setError('new-start_date',"入社日が入力されていません");
+        }
+        if(empty($_POST['mail-new-post'])){
+            $error->setError('new-mail',"メールアドレスが入力されていません");
+        }
+        if(empty($_POST['password-new-post'])){
+            $error->setError('new-password',"パスワードが入力されていません");
+        }
+        if(empty($_POST['confirmationPassword-new-post'])){
+            $error->setError('new-confirmationPassword',"確認パスワードが入力されていません");
+        }
+        elseif(in_array($_POST['mail-new-post'],$emails,true)){
+            $error->setError('new-mail','既に登録されたメールアドレスです');
+        }
+        elseif($_POST['password-new-post']!==$_POST['confirmationPassword-new-post']){
+            $error->setError('new-password',"パスワードが一致しません");
+        }
+        else{
+            $table->iud("INSERT INTO m_employee (employee_no,employee_name,email,start_date,password)VALUES(:employee_no,:employee_name,:email,:start_date,:password)",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post'],'password'=>$_POST['password-new-post']]);
+            $table->cmt();
+            exit();
+        }
     }
-    require_once './dbClass.php';
-    session_start();
-    if(isset($_SESSION['mail'])==""){
-        header('Location:./login.php');
+    catch(Exception $ex){
+        $table->rlb();
     }
+}
+#更新モーダル
+if(isset($_POST['updateModalBtn'])){
+    $table->begin();
+    try{
+        if(empty($_POST['number-update-post'])){
+        $error->setError("update-number","社員番号が入力されていません");
+        }
+        if(empty($_POST['name-update-post'])){
+            $error->setError("update-name","社員名が入力されていません");
+        }
+        if(empty($_POST['calendar-update-post'])){
+            $error->setError("update-start_date","入社日が入力されていません");
+        }
+        elseif($_POST['password-update-post']!==$_POST['confirmationPassword-update-post']){
+            $error->setError("update-password","パスワードが一致していません");
+        }
+        else{
+            $table->iud("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'id'=>$_POST['radio']]);
+            $table->cmt();
+            exit();
+        }
+    }
+    catch(Exception $ex){
+        $table>rlb();
+    }
+    
+
+}
 ?>
 
 <head>
@@ -26,84 +101,33 @@
 
             /* 更新ボタンを押したときに検索結果でラジオボタンのついた社員データをモーダルに表示させた */
             $(document).on("click", "#updateBtn", function () {
-                const selected = $("input[name='radio']:checked")
+                const selected = $("input[name='radio']:checked");
+                const id=selected.val();
                 const row = selected.closest("tr");
                 const number = row.find("td").eq(1).text();
-                $("#updateNumber").val(number);
+                $("#number-update-post").val(number);
                 const name = row.find("td").eq(2).text();
-                $("#updateName").val(name);
-                const calender = row.find("td").eq(4).text();
-                $("#updateCalender").val(calender);
+                $("#name-update-post").val(name);
+                const calendar = row.find("td").eq(4).text();
+                $("#calendar-update-post").val(calendar);
                 const mail = row.find("td").eq(3).text();
-                $("#updateMail").val(mail);
-                $("#updateMail").prop("disabled", true)
+                $("#mail-update-post").val(mail);
             })
-            /* 登録ボタンを押して、テキストが空だったらエラーメッセージが出るようにした。（パスワードが一致していないときも同様） */
-            $(document).on("click", "#newAppModalBtn", function () {
-                let isValid = true;
-                /* テキスト取得 */
-                $("#newNumber").removeClass("is-invalid");
-                $("#newName").removeClass("is-invalid");
-                $("#newMail").removeClass("is-invalid");
-                $("#newCalendar").removeClass("is-invalid");
-                $("#newPassword").removeClass("is-invalid");
-                $("#newConfirmationPassword").removeClass("is-invalid");
-                const number = $("#newNumber").val();
-                const name = $("#newName").val();
-                const mail = $("#newMail").val();
-                const calendar = $("#newCalendar").val();
-                const password = $("#newPassword").val();
-                const confirmationPassword = $("#newConfirmationPassword").val();
-                if (number === "") {
-                    $("#newNumber").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (name === "") {
-                    $("#newName").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (mail === "") {
-                    $("#newMail").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (calendar === "") {
-                    $("#newCalendar").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (password === "") {
-                    $("#newPassword").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (confirmationPassword === "") {
-                    $("#newConfirmationPassword").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (password !== confirmationPassword) {
-                    $("#newPasswordError").text("パスワードが一致していません。");
-                    $("#newConfirmationPasswordError").text("パスワードが一致していません。");
-                    $("#newPassword").addClass("is-invalid");
-                    $("#newConfirmationPassword").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (isValid === true) {
-                    $("#newModal").modal("hide");
-                }
-            });
+            
             /*更新ボタンを押して、テキストが空だったらエラーメッセージが出るようにした。（パスワードが一致していないときも同様） */
-            $(document).on("click", "#updateModalBtn", function () {
+            /* $(document).on("click", "#updateModalBtn", function () {
                 let isValid = true;
-                /* テキスト取得 */
                 $("#updateNumber").removeClass("is-invalid");
                 $("#updateName").removeClass("is-invalid");
                 $("#updateMail").removeClass("is-invalid");
-                $("#updateCalender").removeClass("is-invalid");
+                $("#updateCalendar").removeClass("is-invalid");
                 $("#updatePassword").removeClass("is-invalid");
                 $("#updateConfirmationPassword").removeClass("is-invalid");
 
                 const number = $("#updateNumber").val();
                 const name = $("#updateName").val();
                 const mail = $("#updateMail").val();
-                const calender = $("#updateCalender").val();
+                const calendar = $("#updateCalendar").val();
                 const password = $("#updatePassword").val();
                 const confirmationPassword = $("#updateConfirmationPassword").val();
                 if (number === "") {
@@ -118,8 +142,8 @@
                     $("#updateMail").addClass("is-invalid");
                     isValid = false;
                 }
-                if (calender === "") {
-                    $("#updateCalender").addClass("is-invalid");
+                if (calendar === "") {
+                    $("#updateCalendar").addClass("is-invalid");
                     isValid = false;
                 }
 
@@ -133,7 +157,7 @@
                     $("#updateBtn").prop("disabled", true);
                     $("#delBtn").prop("disabled", true)
                 }
-            });
+            }); */
             /* 検索結果でラジオボタンのついた社員を削除するようにした*/
             $(document).on("click", "#delModalBtn", function () {
                 // チェックされているラジオボタンを取得
@@ -197,14 +221,16 @@
         <div class="container">
             <h1>社員マスタ管理</h1>
             <?php
-            $table=new dbClass();
+            
+            $alertMessage="";
+            if(isset($_GET['searchBtn'])){
+                
+                if(!$login->searchCheck($_GET['number-search-get'],$_GET['name-search-get'],$_GET['mail-search-get'],$_GET['calendar-search-get'])){
+                    $alertMessage="検索結果がありませんでした";
+                    echo $error->alert($alertMessage);
+                }
+            }
             ?>
-            <?php if(isset($_POST['searchBtn'])):?>
-                <?php $rows=$table->select('SELECT * FROM m_employee WHERE employee_no=:employee_no and employee_name=:employee_name and email=:email and start_date=:start_date',['employee_no'=>$_POST['number-post'],'employee_name'=>$_POST['name-post'],'email'=>$_POST['mail-post'],'start_date'=>$_POST['calendar-post']]);?>
-                <?php if(empty($rows)):?>
-                    <?php echo '<div class="alert alert-warning" role="alert">検索結果がありませんでした</div>'?>
-                <?php endif?>
-            <?php endif?>
             
            
             
@@ -215,41 +241,29 @@
                         検索条件
                     </div>
                     <!-- 社員名とメールアドレスの枠を広くするために、グリッドシステムを使用した -->
-                    <form method="POST">
+                    <form method="GET">
                         <div class="card-body">
                             <div class="container">
                                 <div class="row">
                                     <div class="col-2">
-                                        <label for="number-post" class="form-label">社員番号:</label>
+                                        <label for="number-search-get" class="form-label">社員番号:</label>
                                         <!-- 何も入力されていないときにエラーが出るようにした -->
-                                        <input type="text" class="form-control <?php if(isset($_POST['searchBtn'])){if(empty($_POST['number-post'])){echo 'is-invalid';}}?>" id="number-post" name="number-post" value="<?php if(isset($_POST['number-post'])){echo $_POST['number-post'];}?>">
-                                        <div class="invalid-feedback">
-                                            社員番号が入力されていません。
-                                        </div>
+                                        <input type="text" class="form-control" id="number-search-get" name="number-search-get" >
                                     </div>
 
                                     <div class="col-4">
-                                        <label for="name-post" class="form-label">社員名:</label>
-                                        <input type="text" class="form-control <?php if(isset($_POST['searchBtn'])){if(empty($_POST['name-post'])){echo 'is-invalid';}}?>" id="name-post" name="name-post" value="<?php if(isset($_POST['name-post'])){echo $_POST['name-post'];}?>">
-                                        <div class="invalid-feedback">
-                                            社員名が入力されていません。
-                                        </div>
+                                        <label for="name-search-get" class="form-label">社員名:</label>
+                                        <input type="text" class="form-control" id="name-search-get" name="name-search-get">
                                     </div>
 
                                     <div class="col-4">
-                                        <label for="mail-post" class="form-label">メールアドレス:</label>
-                                        <input type="text" class="form-control <?php if(isset($_POST['searchBtn'])){if(empty($_POST['mail-post'])){echo 'is-invalid';}}?>" id="mail-post" name="mail-post" value="<?php if(isset($_POST['mail-post'])){echo $_POST['mail-post'];}?>">
-                                        <div id="error" class="invalid-feedback">
-                                            メールアドレスが入力されていません。
-                                        </div>
+                                        <label for="mail-search-get" class="form-label">メールアドレス:</label>
+                                        <input type="text" class="form-control" id="mail-search-get" name="mail-search-get">
                                     </div>
 
                                     <div class="col-2">
-                                        <label for="calendar-post" class="form-label">入社日:</label>
-                                        <input type="date" class="form-control <?php if(isset($_POST['searchBtn'])){if(empty($_POST['calendar-post'])){echo 'is-invalid';}}?>" id="calendar-post" name="calendar-post" value="<?php if(isset($_POST['calendar-post'])){echo $_POST['calendar-post'];}?>">
-                                        <div class="invalid-feedback">
-                                            カレンダーが入力されていません。
-                                        </div>
+                                        <label for="calendar-search-get" class="form-label">入社日:</label>
+                                        <input type="date" class="form-control" id="calendar-search-get" name="calendar-search-get">
                                     </div>
                                 </div>
                             </div>
@@ -263,6 +277,8 @@
                     </form>
                 </div>
             </div>
+            
+
             <!-- 検索結果カード -->
             <div class="container">
                 <div class="card mt-4">
@@ -304,30 +320,75 @@
                                     else{
                                         $page=1;
                                     }
-
                                     $offset=5*($page-1);
-                                    $q=$table->connect()->query("SELECT * FROM m_employee ORDER BY id LIMIT 5 OFFSET $offset");
-                                    $rows=$q->fetchAll();
-                                    if(isset($_POST['searchBtn'])){
-                                        $rows=$table->select('SELECT * FROM m_employee WHERE employee_no=:employee_no and employee_name=:employee_name and email=:email and start_date=:start_date',['employee_no'=>$_POST['number-post'],'employee_name'=>$_POST['name-post'],'email'=>$_POST['mail-post'],'start_date'=>$_POST['calendar-post']]);
+                                    #urlを作ることでページネイションのボタンを押したときに検索されたものが表示されるようにしている。
+                                    $url='';
+                                    $list=array();
+                                    $where="";
+                                    $param=array();
+                                    $sql="SELECT * FROM m_employee";
+                                    #countを作ることでデータ数に応じてページ数が変わるようにした。
+                                    $count="SELECT count(id) FROM m_employee";
+                                    if(!$isCommit){
+                                        $rows=$table->select("SELECT * FROM m_employee ORDER BY id LIMIT 5 OFFSET $offset",[]);
                                     }
-                                    $p=$table->connect()->query('SELECT count(id) FROM m_employee');
-                                    $lengths=$p->fetchAll();
+                                    else{
+                                        $rows=$table->select("SELECT * FROM m_employee WHERE employee_no=:employee_no and employee_name=:employee_name and email=:email and start_date=:start_date",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post']]);
+                                    }
+                                    if(isset($_GET['searchBtn'])){
+                                        if(!empty($_GET['number-search-get'])){
+                                            $list[]='employee_no=:employee_no';
+                                            $param['employee_no']=$_GET['number-search-get'];
+                                        }
+                                        $url.="number-search-get={$_GET['number-search-get']}";
+                                        if(!empty($_GET['name-search-get'])){
+                                            $list[]='employee_name=:employee_name';
+                                            $param['employee_name']=$_GET['name-search-get'];
+                                        }
+                                        $url.="&name-search-get={$_GET['name-search-get']}";
+                                        if(!empty($_GET['mail-search-get'])){
+                                            $list[]='email=:email';
+                                            $param['email']=$_GET['mail-search-get'];
+                                        }
+                                        $url.="&mail-search-get={$_GET['mail-search-get']}";
+                                        if(!empty($_GET['calendar-search-get'])){
+                                            $list[]='start_date=:start_date';
+                                            $param['start_date']=$_GET['calendar-search-get'];
+                                        }
+                                        $url.="&calendar-search-get={$_GET['calendar-search-get']}";
+                                        $url.="&searchBtn=検索";
+                                        if(!empty($list)){
+                                            $where=implode(' and ',$list);
+                                            $sql.=" WHERE {$where}";
+                                            $count.=" WHERE {$where}";
+                                        }
+                                        $sql.=" ORDER BY id LIMIT 5 OFFSET {$offset}";
+                                        $rows=$table->select($sql,$param);
+                                    }
+                                    
+                                    $lengths=$table->select($count,$param);
                                     ?>
                                     
-                                    <?php foreach($rows as $row):?>
-                                        <tr>
-                                            <td scope="row">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="radio" name="radio" id="radio<?php echo $row['id'];?>" />
-                                                </div>
-                                            </td>
-                                        <td><?php echo $row['employee_no'];?></td>
-                                        <td><?php echo $row['employee_name'];?></td>
-                                        <td><?php echo $row['email'];?></td>
-                                        <td><?php echo $row['start_date'];?></td>
-                                        </tr>   
-                                    <?php endforeach?>
+                                    <?php if($alertMessage==""):?>
+                                        <?php foreach($rows as $row):?>
+                                            <tr>
+                                                <td scope="row">
+                                                    <div class="form-check">
+                                                        <form method="POST">
+                                                            <label for="radio">
+                                                                 <input class="form-check-input" type="radio" name="radio" id="<?php echo $row['id'];?>" value=<?php echo $row['id'];?>/>
+                                                            </label>
+                                                        </form>
+                                                       
+                                                    </div>
+                                                </td>
+                                            <td><?php echo $row['employee_no'];?></td>
+                                            <td><?php echo $row['employee_name'];?></td>
+                                            <td><?php echo $row['email'];?></td>
+                                            <td><?php echo $row['start_date'];?></td>
+                                            </tr>   
+                                        <?php endforeach?>
+                                    <?php endif?>
                                 </tbody>
                             </table>
                         </div>
@@ -335,26 +396,33 @@
                         <nav class="d-flex align-items-center justify-content-center">
                             <ul class="pagination">
                                 <li class="page-item <?php if($page==1){echo 'disabled';}?>">
-                                    <a class="page-link" href="?page=<?php echo $page-1; ?>">前</a>
+                                    <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $page-1; ?>">前</a>
                                 </li>
                                 <?php foreach($lengths as $length):?>
                                     <?php for ($i=1;$i<=ceil($length['count(id)']/5);$i++):?>
-                                    <!-- href="?page=1":$_GET['page']="1"を送信 -->
                                     <li class="page-item <?php if($page==$i){echo 'active';}?>">
-                                        <a class="page-link" href="?page=<?php echo $i;?>"><?php echo $i;?></a>
+                                        <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $i;?>"><?php echo $i;?></a>
                                     </li>
                                     <?php endfor?>
                                 <?php endforeach?>
                                 <li class="page-item">
-                                    <a class="page-link" href="?page=<?php echo $page+1;?>">次</a>
+                                    <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $page+1;?>">次</a>
                                 </li>
                             </ul>
                         </nav>
                     </div>
                 </div>
 
-
                 <!-- 登録モーダル -->
+                 <?php if(isset($_POST['newAppModal-post'])):?>
+                    <?php if(!empty($error->error)):?>
+                    <script>
+                        $(function(){
+                            $("#newModal").modal("show");
+                        });
+                    </script>
+                    <?php endif?>
+                <?php endif?>
                 <div class="modal fade modal-xl" id="newModal" tabindex="-1" aria-labelledby="newModalLabel">
                     <div class="modal-dialog">
                         <div class="modal-content">
@@ -363,74 +431,79 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                                     aria-label="閉じる"></button>
                             </div>
-                            <div class="card mx-2 my-3">
-                                <div class="card-header">
-                                    社員情報
-                                </div>
-                                <div class="card-body">
-                                    <div class="container">
-                                        <div class="row">
-                                            <div class="col-4">
-                                                <label class="form-label">社員番号:</label>
-                                                <input type="text" class="form-control" id="newNumber">
-                                                <div class="invalid-feedback">
-                                                    社員番号が入力されていません。
+                            <form method="POST">
+                                <div class="card mx-2 my-3">
+                                    <div class="card-header">
+                                        社員情報
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="container">
+                                            <div class="row">
+                                                <div class="col-4">
+                                                    <label for="number-new-post" class="form-label ">社員番号:</label>
+                                                    <input type="text" class="form-control <?php echo $error->invalid('new-number');?>" id="number-new-post" name="number-new-post" value="<?php if(isset($_POST['number-new-post'])){echo $_POST['number-new-post'];}?>" >
+                                                    <?php echo $error->getError('new-number');?>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4">
-                                                <label class="form-label">社員名:</label>
-                                                <input type="text" class="form-control" id="newName">
-                                                <div class="invalid-feedback">
-                                                    社員名が入力されていません。
+                                                <div class="col-4">
+                                                    <label for="name-new-post" class="form-label">社員名:</label>
+                                                    <input type="text" class="form-control <?php echo $error->invalid('new-name');?>" id="name-new-post" name="name-new-post" value="<?php if(isset($_POST['name-new-post'])){echo $_POST['name-new-post'];}?>">
+                                                    <?php echo $error->getError('new-name');?>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4">
-                                                <label class="form-label">入社日:</label>
-                                                <input type="date" class="form-control" id="newCalendar">
-                                                <div class="invalid-feedback">
-                                                    入社日が入力されていません。
+                                                <div class="col-4">
+                                                    <label for="calendar-new-post" class="form-label?>">入社日:</label>
+                                                    <input type="date" class="form-control <?php echo $error->invalid('new-start_date');?>" id="calendar-new-post" name="calendar-new-post" value="<?php if(isset($_POST['calendar-new-post'])){echo $_POST['calendar-new-post'];}?>">
+                                                    <?php echo $error->getError('new-start_date');?>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4 mt-2">
-                                                <label class="form-label">メールアドレス:</label>
-                                                <input type="text" class="form-control" id="newMail">
-                                                <div class="invalid-feedback">
-                                                    メールアドレスが入力されていません。
+                                                <div class="col-4 mt-2">
+                                                    <label for="mail-new-post" class="form-label ">メールアドレス:</label>
+                                                    <input type="text" class="form-control <?php echo $error->invalid('new-mail');?>" id="mail-new-post" name="mail-new-post" value="<?php if(isset($_POST['mail-new-post'])){echo $_POST['mail-new-post'];}?>">
+                                                    <?php echo $error->getError('new-mail');?>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4 mt-2">
-                                                <label class="form-label">パスワード:</label>
-                                                <input type="password" class="form-control" id="newPassword">
-                                                <div class="invalid-feedback" id="newPasswordError">
-                                                    パスワードが入力されていません。
+                                                <div class="col-4 mt-2">
+                                                    <label for="password-new-post" class="form-label">パスワード:</label>
+                                                    <input type="password" class="form-control <?php echo $error->invalid('new-password');?>" id="password-new-post" name="password-new-post" value="<?php if(isset($_POST['password-new-post'])){echo $_POST['password-new-post'];}?>">
+                                                    <?php echo $error->getError('new-password');?>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4 mt-2">
-                                                <label class="form-label">確認用パスワード:</label>
-                                                <input type="password" class="form-control"
-                                                    id="newConfirmationPassword">
-                                                <div class="invalid-feedback" id="newConfirmationPasswordError">
-                                                    確認用パスワードが入力されていません。
+                                                <div class="col-4 mt-2">
+                                                    <label for="confirmationPassword-new-post" class="form-label ">確認用パスワード:</label>
+                                                    <input type="password" class="form-control <?php echo $error->invalid('new-confirmationPassword');?>" id="confirmationPassword-new-post" name="confirmationPassword-new-post" value="<?php if(isset($_POST['confirmationPassword-new-post'])){echo $_POST['confirmationPassword-new-post'];}?>">
+                                                    <?php echo $error->getError('new-confirmationPassword');?>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                                <button id="newAppModalBtn" type="button" class="btn btn-success">登録</button>
-                            </div><!-- /.modal-footer -->
+                                <div class="modal-footer">
+                                    <label for="cancelNew-post">
+                                        <button type="button" id="cancelNew-post" name="cancelNew-post" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                                    </label>
+                                    <label for="newAppModal-post">
+                                        <input type="submit" id="newAppModal-post" name="newAppModal-post" class="btn btn-success" value="登録">
+                                    </label>
+                                </div><!-- /.modal-footer -->
+                            </form>
                         </div><!-- /.modal-content -->
                     </div><!-- /.modal-dialog -->
                 </div><!-- /.modal -->
 
+                
+
                 <!-- 更新モーダル -->
+                <?php if(isset($_POST['updateModalBtn'])):?>
+                    <?php if(!empty($error->error)):?>
+                        <script>
+                        $(function(){
+                            $("#updateModal").modal("show");
+                        });
+                        </script>
+                    <?php endif?>
+                <?php endif?>
+
                 <div class="modal fade modal-xl" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel">
                     <div class="modal-dialog">
                         <div class="modal-content">
@@ -440,72 +513,62 @@
                                     aria-label="閉じる"></button>
                             </div>
                             <div class="card mx-2 my-3">
-                                <div class="card-header">
-                                    社員情報
-                                </div>
-                                <div class="card-body">
-                                    <div class="container">
-                                        <div class="row">
-                                            <div class="col-4">
-                                                <label class="form-label">社員番号:</label>
-                                                <input type="text" class="form-control" id="updateNumber">
-                                                <div class="invalid-feedback">
-                                                    社員番号が入力されていません。
+                                <form method="POST">
+                                    <div class="card-header">
+                                        社員情報
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="container">
+                                            <div class="row">
+                                                <div class="col-4">
+                                                    <label for="number-update-post" class="form-label">社員番号:</label>
+                                                    <input type="text" class="form-control <?php echo $error->invalid('update-number');?>" id="number-update-post" name="number-update-post" value="<?php if(isset($_POST['number-update-post'])){echo $_POST['number-update-post'];}?>">
+                                                    <?php echo $error->getError('update-number');?>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4">
-                                                <label class="form-label">社員名:</label>
-                                                <input type="text" class="form-control" id="updateName">
-                                                <div class="invalid-feedback">
-                                                    社員名が入力されていません。
+                                                <div class="col-4">
+                                                    <label for="name-update-post" class="form-label">社員名:</label>
+                                                    <input type="text" class="form-control <?php echo $error->invalid('update-name')?>" id="name-update-post" name="name-update-post" value="<?php if(isset($_POST['name-update-post'])){echo $_POST['name-update-post'];}?>" >
+                                                    <?php echo $error->getError('update-name');?>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4">
-                                                <label class="form-label">入社日:</label>
-                                                <input type="date" class="form-control" id="updateCalender">
-                                                <div class="invalid-feedback">
-                                                    カレンダーが入力されていません。
+                                                <div class="col-4">
+                                                    <label for="calendar-update-post" class="form-label ">入社日:</label>
+                                                    <input type="date" class="form-control <?php echo $error->invalid('update-start_date')?>" id="calendar-update-post" name="calendar-update-post" value="<?php if(isset($_POST['calendar-update-post'])){echo $_POST['calendar-update-post'];}?>">
+                                                    <?php echo $error->getError('update-start_date');?>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4 mt-2">
-                                                <label class="form-label">メールアドレス:</label>
-                                                <input type="text" class="form-control" id="updateMail">
-                                                <div class="invalid-feedback">
-                                                    メールアドレスが入力されていません。
+                                                <div class="col-4 mt-2">
+                                                    <label for="mail-update-post" class="form-label ">メールアドレス:</label>
+                                                    <input type="text" class="form-control bg-secondary-subtle" id="mail-update-post" name="mail-update-post" value="<?php if(isset($_POST['mail-update-post'])){echo $_POST['mail-update-post'];}?>" readonly>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4 mt-2">
-                                                <label class="form-label">パスワード:</label>
-                                                <input type="password" class="form-control" id="updatePassword">
-                                                <div class="invalid-feedback" id="updatePasswordError">
-                                                    パスワードが間違っています。
+                                                <div class="col-4 mt-2">
+                                                    <label for="password-update-post" class="form-label ">パスワード:</label>
+                                                    <input type="password" class="form-control <?php echo $error->invalid('update-password');?>" id="password-update-post" name="password-update-post" value="<?php if(isset($_POST['password-update-post'])){echo $_POST['password-update-post'];}?>">
+                                                    <?php echo $error->getError('update-password');?>
                                                 </div>
-                                            </div>
 
-                                            <div class="col-4 mt-2">
-                                                <label class="form-label">確認用パスワード:</label>
-                                                <input type="password" class="form-control"
-                                                    id="updateConfirmationPassword">
-                                                <div class="invalid-feedback" id="updateConfirmationPasswordError">
-                                                    パスワードが間違っています。
+                                                <div class="col-4 mt-2">
+                                                    <label for="confirmationPassword-update-post" class="form-label ">確認用パスワード:</label>
+                                                    <input type="password" class="form-control <?php echo $error->invalid('update-confirmationPassword');?>"
+                                                        id="confirmationPassword-update-post" name="confirmationPassword-update-post" value="<?php if(isset($_POST['confirmationPassword-update-post'])){echo $_POST['confirmationPassword-update-post'];}?>">
+                                                    <?php echo $error->getError('update-confirmationPassword');?>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                                <button id="updateModalBtn" type="button" class="btn btn-primary">更新</button>
-                            </div><!-- /.modal-footer -->
-                        </div><!-- /.modal-content -->
-                    </div><!-- /.modal-dialog -->
-                </div><!-- /.modal -->
-
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                                        <label for="updateModalBtn">
+                                            <input id="updateModalBtn" name="updateModalBtn" type="submit" class="btn btn-primary" value="更新">
+                                        </label>
+                                    </div><!-- /.modal-footer -->
+                                </form>
+                            </div><!-- /.modal-content -->
+                        </div><!-- /.modal-dialog -->
+                    </div><!-- /.modal -->
+                </div>
                 <!-- 削除モーダル -->
                 <div class="modal fade" id="delModal" tabindex="-1" aria-labelledby="delModalLabel">
                     <div class="modal-dialog">
