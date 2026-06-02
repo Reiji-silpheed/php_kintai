@@ -15,22 +15,22 @@
             $where='';
             $param=array();
             $sql="SELECT * FROM m_employee";
-            if(isset($_POST['searchBtn'])){
-                if(!empty($_POST['number-search-post'])){
+            if(isset($_GET['searchBtn'])){
+                if(!empty($_GET['number-search-get'])){
                     $list[]='employee_no=:employee_no';
-                    $param['employee_no']=$_POST['number-search-post'];
+                    $param['employee_no']=$_GET['number-search-get'];
                 }
-                if(!empty($_POST['name-search-post'])){
+                if(!empty($_GET['name-search-get'])){
                     $list[]='employee_name=:employee_name';
-                    $param['employee_name']=$_POST['name-search-post'];
+                    $param['employee_name']=$_GET['name-search-get'];
                 }
-                if(!empty($_POST['mail-search-post'])){
+                if(!empty($_GET['mail-search-get'])){
                     $list[]='email=:email';
-                    $param['email']=$_POST['mail-search-post'];
+                    $param['email']=$_GET['mail-search-get'];
                 }
-                if(!empty($_POST['calendar-search-post'])){
+                if(!empty($_GET['calendar-search-get'])){
                     $list[]='start_date=:start_date';
-                    $param['start_date']=$_POST['calendar-search-post'];
+                    $param['start_date']=$_GET['calendar-search-get'];
                 }
                 if(!empty($list)){
                     $where=implode(' and ',$list);

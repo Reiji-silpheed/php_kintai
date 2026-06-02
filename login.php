@@ -25,7 +25,7 @@
 <body>
     <!-- カードを中央にするように調整した-->    
     <div class="vh-100 d-flex justify-content-center align-items-center">
-        <div class="card w-25">
+        <div class="card w-25 position-absolute top-0 start-50 translate-middle-x">
             <div class="card-header">ログイン</div>
             <div class="card-body">
                 <form method="POST" class="needs-validation" novalidate>

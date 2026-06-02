@@ -1,13 +1,44 @@
 <?php
-if(isset($_POST['cBtn'])){
-    header('Location:employeeMaster.php');
-}
 require_once './dbClass.php';
 require_once './loginClass.php';
 require_once './messageClass.php';
 session_start();
 if(isset($_SESSION['mail'])==""){
     header('Location:./login.php');
+}
+if(isset($_GET['searchBtn'])){
+    $_SESSION['search-number']=$_GET['number-search-get'];
+    $_SESSION['search-name']=$_GET['name-search-get'];
+    $_SESSION['search-mail']=$_GET['mail-search-get'];
+    $_SESSION['search-calendar']=$_GET['calendar-search-get'];
+}
+if(isset($_GET['cBtn'])){
+    $_SESSION['search-number']='';
+    $_SESSION['search-name']='';
+    $_SESSION['search-mail']='';
+    $_SESSION['search-calendar']='';
+    $_SESSION['url']='';
+}
+if(isset($_POST['newAppModal-post'])){
+    $_SESSION['new-number']=$_POST['number-new-post'];
+    $_SESSION['new-name']=$_POST['name-new-post'];
+    $_SESSION['new-calendar']=$_POST['calendar-new-post'];
+    $_SESSION['new-mail']=$_POST['mail-new-post'];
+    $_SESSION['new-password']=$_POST['password-new-post'];
+    $_SESSION['new-confirmationPassword']=$_POST['confirmationPassword-new-post'];
+
+}
+if(isset($_POST['updateModalBtn'])){
+    $_SESSION['radio-update-id']=$_POST['radio-update-id'];
+    $_SESSION['update-number']=$_POST['number-update-post'];
+    $_SESSION['update-name']=$_POST['name-update-post'];
+    $_SESSION['update-calendar']=$_POST['calendar-update-post'];
+    $_SESSION['update-mail']=$_POST['mail-update-post'];
+    $_SESSION['update-password']=$_POST['password-update-post'];
+    $_SESSION['update-confirmationPassword']=$_POST['confirmationPassword-update-post'];
+}
+if(isset($_POST['delModalBtn'])){
+    $_SESSION['radio-del-id']=$_POST['radio-del-id'];
 }
 $error=new Message();
 $table=new dbClass();
@@ -20,33 +51,34 @@ $emails = array_column($rows, 'email');
 if(isset($_POST['newAppModal-post'])){
     $table->begin();
     try{
-        if(empty($_POST['number-new-post'])){
+        if($_SESSION['new-number']==""){
             $error->setError('new-number',"社員番号が入力されていません");
         }
-        if(empty($_POST['name-new-post'])){
+        if($_SESSION['new-name']==""){
             $error->setError('new-name',"社員名が入力されていません");
         }
-        if(empty($_POST['calendar-new-post'])){
+        if($_SESSION['new-calendar']==""){
             $error->setError('new-start_date',"入社日が入力されていません");
         }
-        if(empty($_POST['mail-new-post'])){
+        if($_SESSION['new-mail']==""){
             $error->setError('new-mail',"メールアドレスが入力されていません");
         }
-        if(empty($_POST['password-new-post'])){
+        if($_SESSION['new-password']==""){
             $error->setError('new-password',"パスワードが入力されていません");
         }
-        if(empty($_POST['confirmationPassword-new-post'])){
+        if($_SESSION['new-confirmationPassword']==""){
             $error->setError('new-confirmationPassword',"確認パスワードが入力されていません");
         }
-        elseif(in_array($_POST['mail-new-post'],$emails,true)){
+        if(in_array($_POST['mail-new-post'],$emails,true)){
             $error->setError('new-mail','既に登録されたメールアドレスです');
         }
-        elseif($_POST['password-new-post']!==$_POST['confirmationPassword-new-post']){
+        if($_POST['password-new-post']!==$_POST['confirmationPassword-new-post']){
             $error->setError('new-password',"パスワードが一致しません");
         }
-        else{
+        if(empty($error->error)){
             $table->iud("INSERT INTO m_employee (employee_no,employee_name,email,start_date,password)VALUES(:employee_no,:employee_name,:email,:start_date,:password)",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post'],'password'=>$_POST['password-new-post']]);
             $table->cmt();
+            header("Location:employeeMaster.php?{$_SESSION['url']}");
             exit();
         }
     }
@@ -58,29 +90,42 @@ if(isset($_POST['newAppModal-post'])){
 if(isset($_POST['updateModalBtn'])){
     $table->begin();
     try{
-        if(empty($_POST['number-update-post'])){
-        $error->setError("update-number","社員番号が入力されていません");
+        if($_SESSION['update-number']==""){
+        $error->setError('update-number',"社員番号が入力されていません");
         }
-        if(empty($_POST['name-update-post'])){
-            $error->setError("update-name","社員名が入力されていません");
+        if($_SESSION['update-name']==""){
+            $error->setError('update-name',"社員名が入力されていません");
         }
-        if(empty($_POST['calendar-update-post'])){
-            $error->setError("update-start_date","入社日が入力されていません");
+        if($_SESSION['update-calendar']==""){
+            $error->setError('update-start_date',"入社日が入力されていません");
         }
-        elseif($_POST['password-update-post']!==$_POST['confirmationPassword-update-post']){
-            $error->setError("update-password","パスワードが一致していません");
+        if($_POST['password-update-post']!==$_POST['confirmationPassword-update-post']){
+            $error->setError('update-password',"パスワードが一致していません");
         }
-        else{
-            $table->iud("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'id'=>$_POST['radio']]);
+        if(empty($error->error)){
+            $table->iud("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'id'=>$_POST['radio-update-id']]);
             $table->cmt();
+            header("Location:employeeMaster.php?{$_SESSION['url']}");
             exit();
         }
     }
     catch(Exception $ex){
-        $table>rlb();
+        $table->rlb();
     }
-    
+}
 
+#削除モーダル
+if(isset($_POST['delModalBtn'])){
+    $table->begin();
+    try{
+        $table->iud("DELETE FROM m_employee WHERE id=:id",['id'=>$_SESSION['radio-del-id']]);
+        $table->cmt();
+        header("Location:employeeMaster.php?{$_SESSION['url']}");
+        exit();
+    }
+    catch(Exception $ex){
+        $table->rlb();
+    }
 }
 ?>
 
@@ -97,12 +142,13 @@ if(isset($_POST['updateModalBtn'])){
     <script>
         $(function () {
             $("#updateBtn").prop("disabled", true);
-            $("#delBtn").prop("disabled", true)
-
+            $("#delBtn").prop("disabled", true);
             /* 更新ボタンを押したときに検索結果でラジオボタンのついた社員データをモーダルに表示させた */
+            
             $(document).on("click", "#updateBtn", function () {
                 const selected = $("input[name='radio']:checked");
                 const id=selected.val();
+                $("#radio-update-id").val(id);
                 const row = selected.closest("tr");
                 const number = row.find("td").eq(1).text();
                 $("#number-update-post").val(number);
@@ -111,66 +157,20 @@ if(isset($_POST['updateModalBtn'])){
                 const calendar = row.find("td").eq(4).text();
                 $("#calendar-update-post").val(calendar);
                 const mail = row.find("td").eq(3).text();
-                $("#mail-update-post").val(mail);
+                $("#mail-update-post-text").val(mail);
             })
-            
-            /*更新ボタンを押して、テキストが空だったらエラーメッセージが出るようにした。（パスワードが一致していないときも同様） */
-            /* $(document).on("click", "#updateModalBtn", function () {
-                let isValid = true;
-                $("#updateNumber").removeClass("is-invalid");
-                $("#updateName").removeClass("is-invalid");
-                $("#updateMail").removeClass("is-invalid");
-                $("#updateCalendar").removeClass("is-invalid");
-                $("#updatePassword").removeClass("is-invalid");
-                $("#updateConfirmationPassword").removeClass("is-invalid");
-
-                const number = $("#updateNumber").val();
-                const name = $("#updateName").val();
-                const mail = $("#updateMail").val();
-                const calendar = $("#updateCalendar").val();
-                const password = $("#updatePassword").val();
-                const confirmationPassword = $("#updateConfirmationPassword").val();
-                if (number === "") {
-                    $("#updateNumber").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (name === "") {
-                    $("#updateName").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (mail === "") {
-                    $("#updateMail").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (calendar === "") {
-                    $("#updateCalendar").addClass("is-invalid");
-                    isValid = false;
-                }
-
-                if (password !== confirmationPassword) {
-                    $("#updatePassword").addClass("is-invalid");
-                    $("#updateConfirmationPassword").addClass("is-invalid");
-                    isValid = false;
-                }
-                if (isValid === true) {
-                    $("#updateModal").modal("hide");
-                    $("#updateBtn").prop("disabled", true);
-                    $("#delBtn").prop("disabled", true)
-                }
-            }); */
+        
             /* 検索結果でラジオボタンのついた社員を削除するようにした*/
             $(document).on("click", "#delModalBtn", function () {
-                // チェックされているラジオボタンを取得
                 const selected = $("input[name='radio']:checked");
-                selected.closest("tr").remove();
-                $("#updateBtn").prop("disabled", true);
-                $("#delBtn").prop("disabled", true)
-            });
+                const id=selected.val();
+                $("#radio-del-id").val(id);
+            })
             /* ラジオボタンが点灯したときに、更新ボタンと削除ボタンを押せるようにした */
             $(document).on("change", "input[name='radio']", function () {
                 if ($("input[name='radio']:checked").length === 0) {
                     $("#updateBtn").prop("disabled", true);
-                    $("#delBtn").prop("disabled", true)
+                    $("#delBtn").prop("disabled", true);
                 }
                 else {
                     $("#updateBtn").prop("disabled", false);
@@ -221,10 +221,8 @@ if(isset($_POST['updateModalBtn'])){
         <div class="container">
             <h1>社員マスタ管理</h1>
             <?php
-            
             $alertMessage="";
             if(isset($_GET['searchBtn'])){
-                
                 if(!$login->searchCheck($_GET['number-search-get'],$_GET['name-search-get'],$_GET['mail-search-get'],$_GET['calendar-search-get'])){
                     $alertMessage="検索結果がありませんでした";
                     echo $error->alert($alertMessage);
@@ -248,28 +246,28 @@ if(isset($_POST['updateModalBtn'])){
                                     <div class="col-2">
                                         <label for="number-search-get" class="form-label">社員番号:</label>
                                         <!-- 何も入力されていないときにエラーが出るようにした -->
-                                        <input type="text" class="form-control" id="number-search-get" name="number-search-get" >
+                                        <input type="text" class="form-control" id="number-search-get" name="number-search-get" value="<?php if(isset($_SESSION['search-number'])){echo $_SESSION['search-number'];}else{echo '';}; ?>">
                                     </div>
 
                                     <div class="col-4">
                                         <label for="name-search-get" class="form-label">社員名:</label>
-                                        <input type="text" class="form-control" id="name-search-get" name="name-search-get">
+                                        <input type="text" class="form-control" id="name-search-get" name="name-search-get" value="<?php if(isset($_SESSION['search-name'])){echo $_SESSION['search-name'];}else{echo '';}?>">
                                     </div>
 
                                     <div class="col-4">
                                         <label for="mail-search-get" class="form-label">メールアドレス:</label>
-                                        <input type="text" class="form-control" id="mail-search-get" name="mail-search-get">
+                                        <input type="text" class="form-control" id="mail-search-get" name="mail-search-get" value="<?php if(isset($_SESSION['search-mail'])){echo $_SESSION['search-mail'];}else{echo '';}?>">
                                     </div>
 
                                     <div class="col-2">
                                         <label for="calendar-search-get" class="form-label">入社日:</label>
-                                        <input type="date" class="form-control" id="calendar-search-get" name="calendar-search-get">
+                                        <input type="date" class="form-control" id="calendar-search-get" name="calendar-search-get" value="<?php if(isset($_POST['search-calendar'])){echo $_SESSION['search-calendar'];}else{echo '';}?>">
                                     </div>
                                 </div>
                             </div>
                             <div class="container">
                                 <div class="d-grid gap-2 mt-2 d-md-flex justify-content-md-end">
-                                    <input type="submit" class="btn btn-warning" name="cBtn" value="クリア">
+                                    <input type="submit" class="btn btn-warning" id="cBtn" name="cBtn" value="クリア">
                                     <input type="submit" class="btn btn-info" name="searchBtn" value="検索">
                                 </div>
                             </div>
@@ -285,132 +283,133 @@ if(isset($_POST['updateModalBtn'])){
                     <div class="card-header">
                         検索結果
                     </div>
-                    <div class="card-body">
-                        <div class="container">
-                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <!-- それぞれのボタンを押したときにモーダルが出るようにした -->
-                                <button type="button" class="btn btn-success" id="newBtn" data-bs-toggle="modal"
-                                    data-bs-target="#newModal">新規</button>
-                                <button type="button" class="btn btn-primary" id="updateBtn" data-bs-toggle="modal"
-                                    data-bs-target="#updateModal">更新</button>
-                                <button type="button" class="btn btn-danger" id="delBtn" data-bs-toggle="modal"
-                                    data-bs-target="#delModal">削除</button>
+                    <form method="POST">
+                        <div class="card-body">
+                            <div class="container">
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <!-- それぞれのボタンを押したときにモーダルが出るようにした -->
+                                    <button type="button" class="btn btn-success" id="newBtn" data-bs-toggle="modal"
+                                        data-bs-target="#newModal">新規</button>
+                                    <button type="button" class="btn btn-primary" id="updateBtn" data-bs-toggle="modal"
+                                        data-bs-target="#updateModal">更新</button>
+                                    <button type="button" class="btn btn-danger" id="delBtn" data-bs-toggle="modal"
+                                        data-bs-target="#delModal">削除</button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="container">
-                            <table class="table mt-2">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th scope="col">#</th>
-                                        <th scope="col">社員番号</th>
-                                        <th scope="col">社員名</th>
-                                        <th scope="col">メールアドレス</th>
-                                        <th scope="col">入社日</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php 
-                                    $page=1;
-                                    if(isset($_GET['page'])){
-                                        if(is_numeric($_GET['page'])){
-                                            $page=(int)$_GET['page'];
-                                        }
-                                    }
-                                    else{
+                            <div class="container">
+                                <table class="table mt-2">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th scope="col">#</th>
+                                            <th scope="col">社員番号</th>
+                                            <th scope="col">社員名</th>
+                                            <th scope="col">メールアドレス</th>
+                                            <th scope="col">入社日</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php 
                                         $page=1;
-                                    }
-                                    $offset=5*($page-1);
-                                    #urlを作ることでページネイションのボタンを押したときに検索されたものが表示されるようにしている。
-                                    $url='';
-                                    $list=array();
-                                    $where="";
-                                    $param=array();
-                                    $sql="SELECT * FROM m_employee";
-                                    #countを作ることでデータ数に応じてページ数が変わるようにした。
-                                    $count="SELECT count(id) FROM m_employee";
-                                    if(!$isCommit){
-                                        $rows=$table->select("SELECT * FROM m_employee ORDER BY id LIMIT 5 OFFSET $offset",[]);
-                                    }
-                                    else{
-                                        $rows=$table->select("SELECT * FROM m_employee WHERE employee_no=:employee_no and employee_name=:employee_name and email=:email and start_date=:start_date",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post']]);
-                                    }
-                                    if(isset($_GET['searchBtn'])){
-                                        if(!empty($_GET['number-search-get'])){
-                                            $list[]='employee_no=:employee_no';
-                                            $param['employee_no']=$_GET['number-search-get'];
+                                        if(isset($_GET['page'])){
+                                            if(is_numeric($_GET['page'])){
+                                                $page=(int)$_GET['page'];
+                                            }
                                         }
-                                        $url.="number-search-get={$_GET['number-search-get']}";
-                                        if(!empty($_GET['name-search-get'])){
-                                            $list[]='employee_name=:employee_name';
-                                            $param['employee_name']=$_GET['name-search-get'];
+                                        else{
+                                            $page=1;
                                         }
-                                        $url.="&name-search-get={$_GET['name-search-get']}";
-                                        if(!empty($_GET['mail-search-get'])){
-                                            $list[]='email=:email';
-                                            $param['email']=$_GET['mail-search-get'];
+                                        $offset=5*($page-1);
+                                        #urlを作ることでページネイションのボタンを押したときに検索されたものが表示されるようにしている。
+                                        $url="";
+                                        $list=array();
+                                        $where="";
+                                        $param=array();
+                                        $sql="SELECT * FROM m_employee";
+                                        #countを作ることでデータ数に応じてページ数が変わるようにした。
+                                        $count="SELECT count(id) FROM m_employee";
+                                        if(!$isCommit){
+                                            $rows=$table->select("SELECT * FROM m_employee ORDER BY id LIMIT 5 OFFSET $offset",[]);
                                         }
-                                        $url.="&mail-search-get={$_GET['mail-search-get']}";
-                                        if(!empty($_GET['calendar-search-get'])){
-                                            $list[]='start_date=:start_date';
-                                            $param['start_date']=$_GET['calendar-search-get'];
+                                        else{
+                                            $rows=$table->select("SELECT * FROM m_employee WHERE employee_no=:employee_no and employee_name=:employee_name and email=:email and start_date=:start_date",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post']]);
                                         }
-                                        $url.="&calendar-search-get={$_GET['calendar-search-get']}";
-                                        $url.="&searchBtn=検索";
-                                        if(!empty($list)){
-                                            $where=implode(' and ',$list);
-                                            $sql.=" WHERE {$where}";
-                                            $count.=" WHERE {$where}";
+                                        if(isset($_GET['searchBtn'])){
+                                            if(!empty($_GET['number-search-get'])){
+                                                $list[]='employee_no=:employee_no';
+                                                $param['employee_no']=$_GET['number-search-get'];
+                                            }
+                                            $url.="number-search-get={$_GET['number-search-get']}";
+                                            if(!empty($_GET['name-search-get'])){
+                                                $list[]='employee_name=:employee_name';
+                                                $param['employee_name']=$_GET['name-search-get'];
+                                            }
+                                            $url.="&name-search-get={$_GET['name-search-get']}";
+                                            if(!empty($_GET['mail-search-get'])){
+                                                $list[]='email=:email';
+                                                $param['email']=$_GET['mail-search-get'];
+                                            }
+                                            $url.="&mail-search-get={$_GET['mail-search-get']}";
+                                            if(!empty($_GET['calendar-search-get'])){
+                                                $list[]='start_date=:start_date';
+                                                $param['start_date']=$_GET['calendar-search-get'];
+                                            }
+                                            $url.="&calendar-search-get={$_GET['calendar-search-get']}";
+                                            $url.="&searchBtn=検索";
+                                            $_SESSION['url']=$url;
+                                            if(!empty($list)){
+                                                $where=implode(' and ',$list);
+                                                $sql.=" WHERE {$where}";
+                                                $count.=" WHERE {$where}";
+                                            }
+                                            $sql.=" ORDER BY id LIMIT 5 OFFSET {$offset}";
+                                            $rows=$table->select($sql,$param);
                                         }
-                                        $sql.=" ORDER BY id LIMIT 5 OFFSET {$offset}";
-                                        $rows=$table->select($sql,$param);
-                                    }
-                                    
-                                    $lengths=$table->select($count,$param);
-                                    ?>
-                                    
-                                    <?php if($alertMessage==""):?>
-                                        <?php foreach($rows as $row):?>
-                                            <tr>
-                                                <td scope="row">
-                                                    <div class="form-check">
-                                                        <form method="POST">
+                                        
+                                        $lengths=$table->select($count,$param);
+                                        ?>
+                                        
+                                        <?php if($alertMessage==""):?>
+                                            <?php foreach($rows as $row):?>
+                                                <tr>
+                                                    <td scope="row">
+                                                        <div class="form-check">
                                                             <label for="radio">
-                                                                 <input class="form-check-input" type="radio" name="radio" id="<?php echo $row['id'];?>" value=<?php echo $row['id'];?>/>
+                                                                <input class="form-check-input" type="radio" name="radio" id="<?php echo $row['id'];?>" value='<?php echo $row['id'];?>'/>
                                                             </label>
-                                                        </form>
-                                                       
-                                                    </div>
-                                                </td>
-                                            <td><?php echo $row['employee_no'];?></td>
-                                            <td><?php echo $row['employee_name'];?></td>
-                                            <td><?php echo $row['email'];?></td>
-                                            <td><?php echo $row['start_date'];?></td>
-                                            </tr>   
-                                        <?php endforeach?>
-                                    <?php endif?>
-                                </tbody>
-                            </table>
-                        </div>
-                        <!-- ページネイション -->
-                        <nav class="d-flex align-items-center justify-content-center">
-                            <ul class="pagination">
-                                <li class="page-item <?php if($page==1){echo 'disabled';}?>">
-                                    <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $page-1; ?>">前</a>
-                                </li>
-                                <?php foreach($lengths as $length):?>
-                                    <?php for ($i=1;$i<=ceil($length['count(id)']/5);$i++):?>
-                                    <li class="page-item <?php if($page==$i){echo 'active';}?>">
-                                        <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $i;?>"><?php echo $i;?></a>
+                                                        </div>
+                                                    </td>
+                                                <td><?php echo $row['employee_no'];?></td>
+                                                <td><?php echo $row['employee_name'];?></td>
+                                                <td><?php echo $row['email'];?></td>
+                                                <td><?php echo $row['start_date'];?></td>
+                                                </tr>   
+                                            <?php endforeach?>
+                                        <?php endif?>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <!-- ページネイション -->
+                            <nav class="d-flex align-items-center justify-content-center">
+                                <ul class="pagination">
+                                    <li class="page-item <?php if($page==1){echo 'disabled';}?>">
+                                        <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $page-1; ?>">前</a>
                                     </li>
-                                    <?php endfor?>
-                                <?php endforeach?>
-                                <li class="page-item">
-                                    <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $page+1;?>">次</a>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
+                                    <?php foreach($lengths as $length):?>
+                                        <?php for ($i=1;$i<=ceil($length['count(id)']/5);$i++):?>
+                                        <li class="page-item <?php if($page==$i){echo 'active';}?>">
+                                            <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $i;?>"><?php echo $i;?></a>
+                                        </li>
+                                        <?php endfor?>
+                                    <?php endforeach?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $page+1;?>">次</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </form>
+                    
                 </div>
 
                 <!-- 登録モーダル -->
@@ -441,37 +440,37 @@ if(isset($_POST['updateModalBtn'])){
                                             <div class="row">
                                                 <div class="col-4">
                                                     <label for="number-new-post" class="form-label ">社員番号:</label>
-                                                    <input type="text" class="form-control <?php echo $error->invalid('new-number');?>" id="number-new-post" name="number-new-post" value="<?php if(isset($_POST['number-new-post'])){echo $_POST['number-new-post'];}?>" >
+                                                    <input type="text" class="form-control <?php echo $error->invalid('new-number');?>" id="number-new-post" name="number-new-post" value="<?php if(isset($_POST['number-new-post'])){echo $_SESSION['new-number'];}else{echo "";}?>" >
                                                     <?php echo $error->getError('new-number');?>
                                                 </div>
 
                                                 <div class="col-4">
                                                     <label for="name-new-post" class="form-label">社員名:</label>
-                                                    <input type="text" class="form-control <?php echo $error->invalid('new-name');?>" id="name-new-post" name="name-new-post" value="<?php if(isset($_POST['name-new-post'])){echo $_POST['name-new-post'];}?>">
+                                                    <input type="text" class="form-control <?php echo $error->invalid('new-name');?>" id="name-new-post" name="name-new-post" value="<?php if(isset($_POST['name-new-post'])){echo $_SESSION['new-name'];}else{echo "";}?>">
                                                     <?php echo $error->getError('new-name');?>
                                                 </div>
 
                                                 <div class="col-4">
                                                     <label for="calendar-new-post" class="form-label?>">入社日:</label>
-                                                    <input type="date" class="form-control <?php echo $error->invalid('new-start_date');?>" id="calendar-new-post" name="calendar-new-post" value="<?php if(isset($_POST['calendar-new-post'])){echo $_POST['calendar-new-post'];}?>">
+                                                    <input type="date" class="form-control <?php echo $error->invalid('new-start_date');?>" id="calendar-new-post" name="calendar-new-post" value="<?php if(isset($_POST['calendar-new-post'])){echo $_SESSION['new-calendar'];}else{echo "";}?>">
                                                     <?php echo $error->getError('new-start_date');?>
                                                 </div>
 
                                                 <div class="col-4 mt-2">
                                                     <label for="mail-new-post" class="form-label ">メールアドレス:</label>
-                                                    <input type="text" class="form-control <?php echo $error->invalid('new-mail');?>" id="mail-new-post" name="mail-new-post" value="<?php if(isset($_POST['mail-new-post'])){echo $_POST['mail-new-post'];}?>">
+                                                    <input type="text" class="form-control <?php echo $error->invalid('new-mail');?>" id="mail-new-post" name="mail-new-post" value="<?php if(isset($_POST['mail-new-post'])){echo $_SESSION['new-mail'];}else{echo "";}?>">
                                                     <?php echo $error->getError('new-mail');?>
                                                 </div>
 
                                                 <div class="col-4 mt-2">
                                                     <label for="password-new-post" class="form-label">パスワード:</label>
-                                                    <input type="password" class="form-control <?php echo $error->invalid('new-password');?>" id="password-new-post" name="password-new-post" value="<?php if(isset($_POST['password-new-post'])){echo $_POST['password-new-post'];}?>">
+                                                    <input type="password" class="form-control <?php echo $error->invalid('new-password');?>" id="password-new-post" name="password-new-post" value="<?php if(isset($_POST['password-new-post'])){echo $_SESSION['new-password'];}else{echo "";}?>">
                                                     <?php echo $error->getError('new-password');?>
                                                 </div>
 
                                                 <div class="col-4 mt-2">
                                                     <label for="confirmationPassword-new-post" class="form-label ">確認用パスワード:</label>
-                                                    <input type="password" class="form-control <?php echo $error->invalid('new-confirmationPassword');?>" id="confirmationPassword-new-post" name="confirmationPassword-new-post" value="<?php if(isset($_POST['confirmationPassword-new-post'])){echo $_POST['confirmationPassword-new-post'];}?>">
+                                                    <input type="password" class="form-control <?php echo $error->invalid('new-confirmationPassword');?>" id="confirmationPassword-new-post" name="confirmationPassword-new-post" value="<?php if(isset($_POST['confirmationPassword-new-post'])){echo $_SESSION['new-confirmationPassword'];}else{echo "";}?>">
                                                     <?php echo $error->getError('new-confirmationPassword');?>
                                                 </div>
                                             </div>
@@ -522,39 +521,42 @@ if(isset($_POST['updateModalBtn'])){
                                             <div class="row">
                                                 <div class="col-4">
                                                     <label for="number-update-post" class="form-label">社員番号:</label>
-                                                    <input type="text" class="form-control <?php echo $error->invalid('update-number');?>" id="number-update-post" name="number-update-post" value="<?php if(isset($_POST['number-update-post'])){echo $_POST['number-update-post'];}?>">
+                                                    <input type="text" class="form-control <?php echo $error->invalid('update-number');?>" id="number-update-post" name="number-update-post" value="<?php if(isset($_POST['number-update-post'])){echo $_SESSION['update-number'];}else{echo '';}?>">
                                                     <?php echo $error->getError('update-number');?>
                                                 </div>
 
                                                 <div class="col-4">
                                                     <label for="name-update-post" class="form-label">社員名:</label>
-                                                    <input type="text" class="form-control <?php echo $error->invalid('update-name')?>" id="name-update-post" name="name-update-post" value="<?php if(isset($_POST['name-update-post'])){echo $_POST['name-update-post'];}?>" >
+                                                    <input type="text" class="form-control <?php echo $error->invalid('update-name')?>" id="name-update-post" name="name-update-post" value="<?php if(isset($_POST['name-update-post'])){echo $_SESSION['update-name'];}else{echo '';}?>">
                                                     <?php echo $error->getError('update-name');?>
                                                 </div>
 
                                                 <div class="col-4">
                                                     <label for="calendar-update-post" class="form-label ">入社日:</label>
-                                                    <input type="date" class="form-control <?php echo $error->invalid('update-start_date')?>" id="calendar-update-post" name="calendar-update-post" value="<?php if(isset($_POST['calendar-update-post'])){echo $_POST['calendar-update-post'];}?>">
+                                                    <input type="date" class="form-control <?php echo $error->invalid('update-start_date')?>" id="calendar-update-post" name="calendar-update-post" value="<?php if(isset($_POST['calendar-update-post'])){echo $_SESSION['update-calendar'];}else{echo '';}?>">
                                                     <?php echo $error->getError('update-start_date');?>
                                                 </div>
 
                                                 <div class="col-4 mt-2">
                                                     <label for="mail-update-post" class="form-label ">メールアドレス:</label>
-                                                    <input type="text" class="form-control bg-secondary-subtle" id="mail-update-post" name="mail-update-post" value="<?php if(isset($_POST['mail-update-post'])){echo $_POST['mail-update-post'];}?>" readonly>
+                                                    <input type="text" class="form-control"  id="mail-updat-post-text" value="<?php if(isset($_POST['mail-update-post'])){echo $_SESSION['update-mail'];}?>" <?php if(isset($_POST['mail-update-post'])){echo 'disabled';}?>>
+                                                    <input type="hidden" id="mail-update-post" name="mail-update-post" value=<?php if(isset($_POST['mail-update-post'])){echo $_POST['mail-update-post'];}?>>
                                                 </div>
 
                                                 <div class="col-4 mt-2">
                                                     <label for="password-update-post" class="form-label ">パスワード:</label>
-                                                    <input type="password" class="form-control <?php echo $error->invalid('update-password');?>" id="password-update-post" name="password-update-post" value="<?php if(isset($_POST['password-update-post'])){echo $_POST['password-update-post'];}?>">
+                                                    <input type="password" class="form-control <?php echo $error->invalid('update-password');?>" id="password-update-post" name="password-update-post" value="<?php if(isset($_POST['password-update-post'])){echo $_SESSION['update-password'];}else{echo '';}?>">
                                                     <?php echo $error->getError('update-password');?>
                                                 </div>
 
                                                 <div class="col-4 mt-2">
                                                     <label for="confirmationPassword-update-post" class="form-label ">確認用パスワード:</label>
                                                     <input type="password" class="form-control <?php echo $error->invalid('update-confirmationPassword');?>"
-                                                        id="confirmationPassword-update-post" name="confirmationPassword-update-post" value="<?php if(isset($_POST['confirmationPassword-update-post'])){echo $_POST['confirmationPassword-update-post'];}?>">
+                                                        id="confirmationPassword-update-post" name="confirmationPassword-update-post" value="<?php if(isset($_POST['confirmationPassword-update-post'])){echo $_SESSION['update-confirmationPassword'];}else{echo '';}?>">
                                                     <?php echo $error->getError('update-confirmationPassword');?>
                                                 </div>
+                                                <!-- type=hidden:非表示にする。ラジオボタンのvalue値をここに格納し、送信する-->
+                                                <input type="hidden" id="radio-update-id" name="radio-update-id" value="<?php if(isset($_SESSION['radio-update-id'])){echo $_SESSION['radio-update-id'];}else{echo '';}?>">
                                             </div>
                                         </div>
                                     </div>
@@ -583,8 +585,11 @@ if(isset($_POST['updateModalBtn'])){
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                                <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
-                                    id="delModalBtn">削除</button>
+                                <form method="POST">
+                                    <input type="submit" class="btn btn-danger" data-bs-dismiss="modal"
+                                    id="delModalBtn" name="delModalBtn" value="削除">
+                                    <input type="hidden" id="radio-del-id" name="radio-del-id" value="<?php if(isset($_SESSION['radio-del-id'])){echo $_SESSION['radio-del-id'];}else{echo '';}?>">
+                                </form>
                             </div><!-- /.modal-footer -->
                         </div><!-- /.modal-content -->
                     </div><!-- /.modal-dialog -->
