@@ -45,6 +45,7 @@ $table=new dbClass();
 $login=new login();
 $rows=$table->select('SELECT email FROM m_employee',[]);
 $isCommit=false;
+#array_colum:キーを変える。
 $emails = array_column($rows, 'email');
 
 #登録モーダル
@@ -69,10 +70,10 @@ if(isset($_POST['newAppModal-post'])){
         if($_SESSION['new-confirmationPassword']==""){
             $error->setError('new-confirmationPassword',"確認パスワードが入力されていません");
         }
-        if(in_array($_POST['mail-new-post'],$emails,true)){
+        if(in_array($_SESSION['new-mail'],$emails,true)){
             $error->setError('new-mail','既に登録されたメールアドレスです');
         }
-        if($_POST['password-new-post']!==$_POST['confirmationPassword-new-post']){
+        if($_SESSION['new-password']!==$_SESSION['new-confirmationPassword']){
             $error->setError('new-password',"パスワードが一致しません");
         }
         if(empty($error->error)){
@@ -99,15 +100,22 @@ if(isset($_POST['updateModalBtn'])){
         if($_SESSION['update-calendar']==""){
             $error->setError('update-start_date',"入社日が入力されていません");
         }
-        if($_POST['password-update-post']!==$_POST['confirmationPassword-update-post']){
+        if($_SESSION['update-password']!==$_SESSION['update-confirmationPassword']){
             $error->setError('update-password',"パスワードが一致していません");
         }
-        if(empty($error->error)){
+        if(empty($error->error) && $_SESSION['update-password']==''){
             $table->iud("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'id'=>$_POST['radio-update-id']]);
             $table->cmt();
             header("Location:employeeMaster.php?{$_SESSION['url']}");
             exit();
         }
+        if(empty($error->error) && $_SESSION['update-password']!==''){
+            $table->iud("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date,password=:password WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'password'=>$_POST['password-update-post'],'id'=>$_POST['radio-update-id']]);
+            $table->cmt();
+            header("Location:employeeMaster.php?{$_SESSION['url']}");
+            exit();
+        }
+
     }
     catch(Exception $ex){
         $table->rlb();
@@ -158,7 +166,10 @@ if(isset($_POST['delModalBtn'])){
                 $("#calendar-update-post").val(calendar);
                 const mail = row.find("td").eq(3).text();
                 $("#mail-update-post-text").val(mail);
+                $("#mail-update-post").val(mail);
+                $("#mail-update-post-text").prop("disabled",true);
             })
+
         
             /* 検索結果でラジオボタンのついた社員を削除するようにした*/
             $(document).on("click", "#delModalBtn", function () {
@@ -261,7 +272,7 @@ if(isset($_POST['delModalBtn'])){
 
                                     <div class="col-2">
                                         <label for="calendar-search-get" class="form-label">入社日:</label>
-                                        <input type="date" class="form-control" id="calendar-search-get" name="calendar-search-get" value="<?php if(isset($_POST['search-calendar'])){echo $_SESSION['search-calendar'];}else{echo '';}?>">
+                                        <input type="date" class="form-control" id="calendar-search-get" name="calendar-search-get" value="<?php if(isset($_SESSION['search-calendar'])){echo $_SESSION['search-calendar'];}else{echo '';}?>">
                                     </div>
                                 </div>
                             </div>
@@ -401,10 +412,11 @@ if(isset($_POST['delModalBtn'])){
                                             <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $i;?>"><?php echo $i;?></a>
                                         </li>
                                         <?php endfor?>
+                                        <li class="page-item <?php if($page==ceil($length['count(id)']/5)){echo 'disabled';}?>" >
+                                            <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $page+1;?>">次</a>
+                                        </li>
                                     <?php endforeach?>
-                                    <li class="page-item">
-                                        <a class="page-link" href="?<?php echo $url;?>&page=<?php echo $page+1;?>">次</a>
-                                    </li>
+                                    
                                 </ul>
                             </nav>
                         </div>
@@ -507,7 +519,7 @@ if(isset($_POST['delModalBtn'])){
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header bg-info">
-                                <h1 class="modal-title fs-5 text-white" id="newModalLabel">社員登録</h1>
+                                <h1 class="modal-title fs-5 text-white" id="newModalLabel">社員更新</h1>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                                     aria-label="閉じる"></button>
                             </div>
@@ -539,8 +551,8 @@ if(isset($_POST['delModalBtn'])){
 
                                                 <div class="col-4 mt-2">
                                                     <label for="mail-update-post" class="form-label ">メールアドレス:</label>
-                                                    <input type="text" class="form-control"  id="mail-updat-post-text" value="<?php if(isset($_POST['mail-update-post'])){echo $_SESSION['update-mail'];}?>" <?php if(isset($_POST['mail-update-post'])){echo 'disabled';}?>>
-                                                    <input type="hidden" id="mail-update-post" name="mail-update-post" value=<?php if(isset($_POST['mail-update-post'])){echo $_POST['mail-update-post'];}?>>
+                                                    <input type="text" class="form-control"  id="mail-update-post-text" value="<?php if(isset($_SESSION['update-mail'])){echo $_SESSION['update-mail'];}?> " disabled>
+                                                    <input type="hidden" id="mail-update-post" name="mail-update-post" value="<?php if(isset($_POST['mail-update-post'])){echo $_POST['mail-update-post'];}?>">
                                                 </div>
 
                                                 <div class="col-4 mt-2">
