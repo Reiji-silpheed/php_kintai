@@ -9,173 +9,171 @@
     <link rel="stylesheet" href="./style.css">
     <title>勤怠管理</title>
     <?php
+    require_once './messageClass.php';
+    require_once './dbClass.php';
+    require_once './loginClass.php';
+    date_default_timezone_set('Asia/Tokyo');
+    $firstDate=new DateTime();
+    $firstValue=$firstDate->format('Y-m');
     session_start();
     if($_SESSION['mail']==""){
         header('Location:./login.php');
     } 
-    ?>
+    if(isset($_POST['displayBtn'])){
+        $_SESSION['display-month']=$_POST['month-post'];
+    }
+    $error=new Message();
+    $table=new dbClass();
+    $login=new login();
+    $rows=$table->select('SELECT * FROM m_holiday',[]);
+    function createCalendar($rows){
+        $weeks=['日','月','火','水','木','金','土'];
+        $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
+        $firstWeekDay=date('w',strtotime($_SESSION['display-month'].'-01'));
+        $firstParts=explode("-",$_SESSION['display-month']);
+        $CalendarElement=
+            "<table class='table mt-2'>
+                <thead class='table-dark'>
+                    <tr>
+                        <th>日</th>
+                        <th>曜日</th>
+                        <th>区分</th>
+                        <th>開始時間</th>
+                        <th>終了時間</th>
+                        <th>昼休憩時間</th>
+                        <th>夜休憩時間</th>
+                        <th>備考</th>
+                    </tr>
+                </thead>";
+        $CalendarElement .= "<tbody>";
+        for($w=1;$w<=$lastDateOfMonth;$w++){
+            $holiday=false;
+            $holidayValue='';
+            $day='0'.$w;
+            $colorClass="";
+            $date=($firstWeekDay+$w-1)%7;
+            $yyyy=$firstParts[0];
+            $mm=$firstParts[1];
+            $dd=substr($day,-2);
+            $fullDate="{$yyyy}-{$mm}-{$dd}";
+            foreach($rows as $row){
+                if($fullDate==$row['yyyymmdd']){
+                    $holiday=true;
+                    $holidayValue=$row['holiday_name'];
+                }
+            }
+            if($date==6){
+                $colorClass = 'bg-primary-subtle text-primary';
+            }
+            elseif($date==0 || $holiday){
+                $colorClass = 'bg-danger-subtle text-danger';
+            }
+            $CalendarElement .= "<tr>";
+            $CalendarElement .= "<td class='$colorClass'>$w</td>";
+            $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
+            if ($date === 0 || $date === 6 || $holiday) {
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <select class='select1a form-select' name='fill' readonly>
+                                                <option class='holiday'>休日</option>
+                                                <option class='work'>休出</option>
+                                            </select>
+                                        </label>
+                                    </td>";
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input id='startWork' type='time' name='fill' class='form-control' readonly>
+                                        </label>
+                                    </td>";
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input id='finishWork' type='time' name='fill' class='form-control' readonly>
+                                        </label>
+                                    </td>";
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input id='lunch' type='time' name='fill' class='form-control' readonly>
+                                        </label>
+                                    </td>";
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input id='dinner' type='time' name='fill' class='form-control' readonly>
+                                        </label>
+                                    </td>";
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input type='text' name='fill' class='form-control' value='$holidayValue' readonly>
+                                        </label>
+                                    </td>";
+            }
+            else {
+
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <select class='select1a form-select' name='fill'>
+                                                <option class='work'>出勤</option>
+                                                <option class='holiday'>有給</option>
+                                                <option class='holiday'>欠勤</option>
+                                                <option class='holiday'>特休</option>
+                                                <option class='holiday'>代休</option>
+                                                <option class='holiday'>振休</option>
+                                            </select>
+                                        </label>
+                                    </td>";
+
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input id='startWork' type='time' name='fill' class='form-control' value='09:00'>
+                                        </label>
+                                    </td>";
+
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input id='finishWork' type='time' name='fill' class='form-control' value='18:00'>
+                                        </label>
+                                    </td>";
+
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input id='lunch' type='time' name='fill' class='form-control' value='01:00'>
+                                        </label>
+                                    </td>";
+
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input id='dinner' type='time' name='fill' class='form-control' value='00:00'>
+                                        </label>
+                                    </td>";
+
+                $CalendarElement .= "<td class='$colorClass'>
+                                        <label>
+                                            <input type='text' name='fill' class='form-control' value='$holidayValue'>
+                                        </label>
+                                    </td>";
+            }
+            $CalendarElement .= "</tr>";
+        }
+        $CalendarElement .= "</tbody></table>";
+        return $CalendarElement;
+    }
+    ?> 
     <script>
         $(function () {
-            let firstDate = new Date()
-            let firstYear = firstDate.getFullYear();
-            let firstMonth = firstDate.getMonth() + 1;
-            let firstDay = firstDate.getDay()
-            if (firstMonth < 10) {
-                firstMonth = "0" + firstMonth
-            }
-            let firstValue = firstYear + "-" + firstMonth;
-            $("#month").val(firstValue);
-            let firstParts = firstValue.split("-");
-            const year = firstParts[0];
-            const month = firstParts[1];
-            let holidays = {};
-            $.ajax({
-                url: 'https://holidays-jp.github.io/api/v1/date.json',
-                method: 'get',
-                dataType: 'json',
-            }).then(function (json) {
-                holidays = json;
-                console.log(holidays);
-                $("#calendar").empty();
-                $("#calendar").append(CreateCalendar(year, month));
-            })
-
-            /* カレンダーのテーブルを作る関数 */
-            function CreateCalendar(year, month) {
-                const weeks = ['日', '月', '火', '水', '木', '金', '土']
-                /* 月の初めの曜日を取得 */
-                const startDateOfMonth = new Date(year, month - 1, 1).getDay();
-                /* 月の最後の日付を取得 */
-                const lastDateOfMonth = new Date(year, month, 0).getDate()
-                var CalendarElement =
-                    `<table class='table mt-2'>
-                                <thead class='table-dark'>
-                                    <tr>
-                                        <th>日</th>
-                                        <th>曜日</th>
-                                        <th>区分</th>
-                                        <th>開始時間</th>
-                                        <th>終了時間</th>
-                                        <th>昼休憩時間</th>
-                                        <th>夜休憩時間</th>
-                                        <th>備考</th>
-                                    </tr>
-                                </thead>`
-                CalendarElement += "<tbody>"
-
-
-                for (let w = 1; w <= lastDateOfMonth; w++) {
-                    let day = w
-                    let colorClass = ""
-                    let date = (startDateOfMonth + w - 1) % 7
-                    let week = weeks[date]
-                    let yyyy = year;
-                    let mm = ("0" + month).slice(-2);
-                    let dd = ("0" + day).slice(-2);
-                    let fullDate = `${yyyy}-${mm}-${dd}`;
-                    let isHoliday = holidays[fullDate];
-                    let holidayName = holidays[fullDate] || "";
-                    if (date === 6) {
-                        colorClass += 'bg-primary-subtle text-primary';
-                    }
-                    else if (date === 0 || isHoliday) {
-                        colorClass += 'bg-danger-subtle text-danger';
-                    }
-                    CalendarElement += "<tr>"
-                    CalendarElement += "<td class='" + colorClass + "'>" + day + "</td>" + "<td class='" + colorClass + "'>" + week + "</td>"
-                    if (date === 0 || date === 6 || isHoliday) {
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                    <select class="select1a form-select" name="fill" readonly>
-                                        <option class="holiday">休日</option>
-                                        <option class="work">休出</option>
-                                    </select>
-                                </label>`
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input id="startWork" type="time" name="fill" class="form-control" readonly>
-                                    </label>`
-                            + "</td>"
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input id="finishWork" type="time" name="fill" class="form-control" readonly>
-                                    </label>`
-                            + "</td>"
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input id="lunch" type="time" name="fill" class="form-control" readonly>
-                                    </label>`
-                            + "</td>"
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input id="dinner" type="time" name="fill" class="form-control" readonly>
-                                    </label>`
-                            + "</td>"
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input type="text" name="fill" class="form-control"  value="${holidayName}" readonly>
-                                    </label>`
-                            + "</td>"
-                    }
-                    else {
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <select class="select1a form-select" name="fill">
-                                            <option class="work">出勤</option>
-                                            <option class="holiday">有給</option>
-                                            <option class="holiday">欠勤</option>
-                                            <option class="holiday">特休</option>
-                                            <option class="holiday">代休</option>
-                                            <option class="holiday">振休</option>
-                                        </select>
-                                    </label>`
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input id="startWork" type="time" name="fill" class="form-control" value="09:00">
-                                    </label>`
-                            + "</td>"
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input id="finishWork" type="time" name="fill" class="form-control" value="18:00">
-                                    </label>`
-                            + "</td>"
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input id="lunch" type="time" name="fill" class="form-control" value="01:00">
-                                        </label>`
-                            + "</td>"
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input id="dinner" type="time" name="fill" class="form-control" value="00:00">
-                                    </label>`
-                            + "</td>"
-                        CalendarElement += "<td class='" + colorClass + "'>" +
-                            `<label>
-                                        <input  type="text" name="fill" class="form-control" value="${holidayName}">
-                                    </label>`
-                            + "</td>"
-                    }
-
-                    CalendarElement += "</tr>"
-                }
-                CalendarElement += "</tbody></table>";
-                return CalendarElement;
-            }
-
-            $(document).on("click", "#displayBtn", function () {
-                let value = $("#month").val();
-                $("table").remove();
-                if (value === "") {
-                    $("#alert").remove()
-                    $("#dateCard").before('<div id="alert" class="alert alert-danger" role="alert">年月が選択されていません。</div>')
-                }
-                else {
-                    let fullValue = $("#month").val();
-                    /* カレンダーのvalue値を-で区切り、年と月に分けた */
-                    let parts = fullValue.split("-");
-                    const year = parts[0];
-                    const month = parts[1];
-                    $("#calendar").append(CreateCalendar(year, month))
+            $(document).on("change", ".select1a", function () {
+                var selectedClass = $(this).find('option:selected').attr('class');
+                let row = $(this).closest("tr");
+                if (selectedClass === "holiday") {
+                    row.find("input").val("");
+                    row.find("input").prop("readonly", true);
+                    row.find("td").removeClass();
+                    row.find("td").addClass("bg-danger-subtle text-danger");
+                } else {
+                    row.find("#startWork").val("09:00");
+                    row.find("#finishWork").val("18:00");
+                    row.find("#lunch").val("01:00");
+                    row.find("#dinner").val("01:00");
+                    row.find("input").prop("readonly", false);
+                    row.find("td").removeClass();
                 }
             })
             /* 更新ボタン */
@@ -192,24 +190,7 @@
                 $('[name="fill"]').prop("disabled", true);
             })
             /* 働かない日は時間を入力できないようにする */
-            $(document).on("change", ".select1a", function () {
-                var selectedClass = $(this).find('option:selected').attr('class');
-                let row = $(this).closest("tr");
-
-                if (selectedClass === "holiday") {
-                    row.find("input").val("");
-                    row.find("input").prop("readonly", true);
-                    row.find("td").removeClass();
-                    row.find("td").addClass("bg-danger-subtle text-danger");
-                } else {
-                    row.find("#startWork").val("09:00");
-                    row.find("#finishWork").val("18:00");
-                    row.find("#lunch").val("01:00");
-                    row.find("#dinner").val("01:00");
-                    row.find("input").prop("readonly", false);
-                    row.find("td").removeClass();
-                }
-            })
+            
         })
 
     </script>
@@ -257,32 +238,51 @@
     <main>
         <div class="container">
             <h1>勤怠入力</h1>
-            <div id="dateCard" class="card">
-                <div class="card-header">
-                    入力
-                </div>
-                <div class="card-body">
-                    <label for="date">年月:</label>
-                    <div class="input-group w-25">
-                        <input type="month" id="month" class="form-control">
+            <?php
+            if(isset($_POST['displayBtn'])){
+                if($_SESSION['display-month']==''){
+                    echo $error->alert('alert-danger',"年月が選択されていません");
+                }
+            }
+            ?>
+            <form method="POST">
+                <div id="dateCard" class="card">
+                    <div class="card-header">
+                        入力
                     </div>
-                    <div class="m-2 d-flex justify-content-end">
-                        <button class="btn btn-info" id="displayBtn" type="button">表示</button>
+                    <div class="card-body">
+                        <label for="date">年月:</label>
+                        <div class="input-group w-25">
+                            <input type="month" id="month-post" name="month-post" class="form-control" value="<?php if(isset($_POST['month-post'])){echo $_SESSION['display-month'];}else{echo $firstValue;}?>">
+                        </div>
+                        <div class="m-2 d-flex justify-content-end">
+                            <input class="btn btn-info" id="displayBtn" name="displayBtn" type="submit" value="表示">
+                        </div>
                     </div>
                 </div>
-            </div>
+            </form>
             <div id="calendarCard" class="card mt-2">
-                <div class="card-header">
+                <form method="POST">
+                    <div class="card-header">
                     カレンダー
                 </div>
                 <div class="card-body container">
                     <div class="m-2 d-flex justify-content-end gap-2">
-                        <button class="btn btn-primary" id="saveBtn" name="fill" type="button">保存</button>
-                        <button class="btn  btn-success" id="appBtn" name="fill" type="button" data-bs-toggle="modal"
-                            data-bs-target="#appModal">申請</button>
+                        <input class="btn btn-primary" id="saveBtn" name="saveBtn" type="submit" value="保存">
+                        <input class="btn  btn-success" id="appBtn" name="saveBtn" type="submit" data-bs-toggle="modal"
+                            data-bs-target="#appModal" value="申請">
                     </div>
-                    <div id="calendar" class="mt-2"></div>
+                    <div id="calendar" class="mt-2">
+                        <?php
+                        if(isset($_POST['displayBtn'])){
+                            if($_SESSION['display-month']!==''){
+                                echo createCalendar($rows);
+                            }
+                        }
+                        ?>
+                    </div>
                 </div>
+                </form>
             </div>
         </div>
 

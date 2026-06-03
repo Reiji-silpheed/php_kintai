@@ -235,8 +235,7 @@ if(isset($_POST['delModalBtn'])){
             $alertMessage="";
             if(isset($_GET['searchBtn'])){
                 if(!$login->searchCheck($_GET['number-search-get'],$_GET['name-search-get'],$_GET['mail-search-get'],$_GET['calendar-search-get'])){
-                    $alertMessage="検索結果がありませんでした";
-                    echo $error->alert($alertMessage);
+                    echo $error->alert('alert-warning',"検索結果がありませんでした");
                 }
             }
             ?>

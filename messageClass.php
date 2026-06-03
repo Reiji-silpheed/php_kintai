@@ -15,8 +15,8 @@ class Message{
             return "is-invalid";
         }
     }
-    public function alert($message){
-        return "<div class='alert alert-warning' role='alert'>{$message}</div>";
+    public function alert($color,$message){
+        return "<div class='alert {$color}' role='alert'>{$message}</div>";
     }
 }
 ?>
