@@ -65,44 +65,44 @@
             if($date==6){
                 $colorClass = 'bg-primary-subtle text-primary';
             }
-            elseif($date==0 || $holiday){
+            if($date==0 || $holiday){
                 $colorClass = 'bg-danger-subtle text-danger';
             }
             $CalendarElement .= "<tr>";
-            $CalendarElement .= "<td class='$colorClass'>$w</td>";
+            $CalendarElement .= "<td class='$colorClass' name='day'>$w</td>";
             $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
             if ($date === 0 || $date === 6 || $holiday) {
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <select class='select1a form-select' name='fill' readonly>
-                                                <option class='holiday'>休日</option>
-                                                <option class='work'>休出</option>
+                                            <select class='select1a form-select' name='kbn' readonly>
+                                                <option class='holiday' value=2>休日</option>
+                                                <option class='work' value=4>休出</option>
                                             </select>
                                         </label>
                                     </td>";
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input id='startWork' type='time' name='fill' class='form-control' readonly>
+                                            <input id='startWork' type='time' name='start' class='form-control' readonly>
                                         </label>
                                     </td>";
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input id='finishWork' type='time' name='fill' class='form-control' readonly>
+                                            <input id='finishWork' type='time' name='end' class='form-control' readonly>
                                         </label>
                                     </td>";
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input id='lunch' type='time' name='fill' class='form-control' readonly>
+                                            <input id='lunch' type='time' name='lunch' class='form-control' readonly>
                                         </label>
                                     </td>";
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input id='dinner' type='time' name='fill' class='form-control' readonly>
+                                            <input id='dinner' type='time' name='dinneer' class='form-control' readonly>
                                         </label>
                                     </td>";
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input type='text' name='fill' class='form-control' value='$holidayValue' readonly>
+                                            <input type='text' name='text' class='form-control' value='$holidayValue' readonly>
                                         </label>
                                     </td>";
             }
@@ -110,44 +110,44 @@
 
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <select class='select1a form-select' name='fill'>
-                                                <option class='work'>出勤</option>
-                                                <option class='holiday'>有給</option>
-                                                <option class='holiday'>欠勤</option>
-                                                <option class='holiday'>特休</option>
-                                                <option class='holiday'>代休</option>
-                                                <option class='holiday'>振休</option>
+                                            <select class='select1a form-select' name='kbn'>
+                                                <option class='work'value=1>出勤</option>
+                                                <option class='holiday' value=3>有給</option>
+                                                <option class='holiday' value=5>欠勤</option>
+                                                <option class='holiday' value=6>特休</option>
+                                                <option class='holiday' value=7>代休</option>
+                                                <option class='holiday' value=8>振休</option>
                                             </select>
                                         </label>
                                     </td>";
 
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input id='startWork' type='time' name='fill' class='form-control' value='09:00'>
+                                            <input id='startWork' type='time' name='start' class='form-control' value='09:00'>
                                         </label>
                                     </td>";
 
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input id='finishWork' type='time' name='fill' class='form-control' value='18:00'>
+                                            <input id='finishWork' type='time' name='end' class='form-control' value='18:00'>
                                         </label>
                                     </td>";
 
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input id='lunch' type='time' name='fill' class='form-control' value='01:00'>
+                                            <input id='lunch' type='time' name='lunch' class='form-control' value='01:00'>
                                         </label>
                                     </td>";
 
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input id='dinner' type='time' name='fill' class='form-control' value='00:00'>
+                                            <input id='dinner' type='time' name='dinner' class='form-control' value='00:00'>
                                         </label>
                                     </td>";
 
                 $CalendarElement .= "<td class='$colorClass'>
                                         <label>
-                                            <input type='text' name='fill' class='form-control' value='$holidayValue'>
+                                            <input type='text' name='text' class='form-control' value='$holidayValue'>
                                         </label>
                                     </td>";
             }
@@ -179,10 +179,10 @@
             /* 更新ボタン */
             $(document).on("click", "#saveBtn", function () {
                 $("#alert").remove()
-                $("#dateCard").before('<div id="alert" class="alert alert-primary" role="alert">保存が完了しました。</div>');
+                $("#dateCard").before('<div id="alert" class="alert " role="alert">保存が完了しました。</div>');
                 $("#saveModal").modal("hide");
             })
-            /* 削除ボタン */
+            /* 申請ボタン */
             $(document).on("click", "#appModalBtn", function () {
                 $("#alert").remove()
                 $("#dateCard").before('<div id="alert" class="alert alert-success" role="alert">申請が完了しました。</div>');
@@ -244,6 +244,9 @@
                     echo $error->alert('alert-danger',"年月が選択されていません");
                 }
             }
+            if(isset($_POST['saveBtn'])){
+                echo $error->alert('alert-primary',"保存が完了しました");
+            }
             ?>
             <form method="POST">
                 <div id="dateCard" class="card">
@@ -265,23 +268,49 @@
                 <form method="POST">
                     <div class="card-header">
                     カレンダー
-                </div>
-                <div class="card-body container">
-                    <div class="m-2 d-flex justify-content-end gap-2">
-                        <input class="btn btn-primary" id="saveBtn" name="saveBtn" type="submit" value="保存">
-                        <input class="btn  btn-success" id="appBtn" name="saveBtn" type="submit" data-bs-toggle="modal"
-                            data-bs-target="#appModal" value="申請">
                     </div>
-                    <div id="calendar" class="mt-2">
-                        <?php
-                        if(isset($_POST['displayBtn'])){
-                            if($_SESSION['display-month']!==''){
-                                echo createCalendar($rows);
+                    <div class="card-body container">
+                        <div class="m-2 d-flex justify-content-end gap-2">
+                            <input class="btn btn-primary" id="saveBtn" name="saveBtn" type="submit" value="保存">
+                            <input class="btn  btn-success" id="appBtn" name="saveBtn" type="submit" data-bs-toggle="modal"
+                                data-bs-target="#appModal" value="申請">
+                        </div>
+                        <div id="calendar" class="mt-2">
+                            <?php
+                            if(isset($_POST['displayBtn'])){
+                                if($_SESSION['display-month']!==''){
+                                    echo createCalendar($rows);
+                                }
                             }
-                        }
-                        ?>
+                            ?>
+                            <?php
+                            if(isset($_POST['saveBtn'])){
+                                $rows=$table->select("SELECT * 
+                                FROM kintai.t_attendance_head
+                                WHERE email=:email 
+                                LEFT JOIN kintai.m_employee
+                                on m_employee.id=t_attendance_head.employee_id 
+                                LEFT JOIN kintai.t_attendance_detail
+                                on t_attendance_detail.head_id=t_attendance_head.id;"
+                                ,['email'=>$_SESSION['mail']]);
+                                if(empty($rows)){
+                                    $table->begin();
+                                    $work_time=strtotime($_POST['end'])-strtotime($_POST['start'])-strtotime($_POST['lunch'])-strtotime($_POST['dinner']);
+                                    if($work_time>'08:00:00'){
+                                        $over_time=strtotime($work_time)-strtotime('08:00:00');
+                                    }
+                                    else{
+                                        $over_time='00:00:00';
+                                    }
+                                    $table->iud('INSERT INTO t_attendance_detail 
+                                    (head_id,day,kbn,start_time,end_time,rest_time,night_rest_time,work_time,over_time,remarks)
+                                    VALUES(:head_id,:day,:kbn,:start_time,end_time,rest_time,night_rest_time,work_time,over_time,remarks)'
+                                    ,['head_id'=>,'day'=>$_POST['day'],'kbn'=>$_POST['kbn'],'start_time'=>$_POST['start'],'end'=>$_POST['end'],'rest_time'=>$_POST['lunch'],'night_rest_time'=>$_POST['dinner'],'work_time'=>$work_time,'over_time'=>$over_time,'remarks'=>$_POST['text']]);
+                                }
+                            }
+                            ?>
+                        </div>
                     </div>
-                </div>
                 </form>
             </div>
         </div>
