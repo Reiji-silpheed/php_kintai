@@ -7,12 +7,18 @@
     <?php
     require_once './loginClass.php';
     require_once './messageClass.php';
+    require_once './dbClass.php';
     session_start();
     $error=new Message();
+    $table=new dbClass();
     if(isset($_POST['mail-post']) && isset($_POST['password-post'])){
         $login=new login();
         if($login->loginCheck($_POST['mail-post'],$_POST['password-post'])){
             $_SESSION['mail']=$_POST['mail-post'];
+            $rows=$table->select("SELECT * from m_employee WHERE email=:email",['email'=>$_SESSION['mail']]);
+            foreach($rows as $row){
+                $_SESSION['id']=$row['id'];
+            }
             header('Location:./kintai.php');
         }
         else{
