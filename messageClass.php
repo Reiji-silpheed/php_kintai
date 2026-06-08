@@ -16,7 +16,7 @@ class Message{
         }
     }
     public function alert($color,$message){
-        return "<div class='alert {$color}' role='alert'>{$message}</div>";
+        return "<div id='alert' class='alert {$color}' role='alert'>{$message}</div>";
     }
 }
 ?>
