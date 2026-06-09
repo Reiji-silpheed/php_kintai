@@ -14,6 +14,9 @@
     require_once './loginClass.php';
     date_default_timezone_set('Asia/Tokyo');
     $firstDate=new DateTime();
+    $error=new Message();
+    $table=new dbClass();
+    $login=new login();
     $firstValue=$firstDate->format('Y-m');
     session_start();
     if($_SESSION['mail']==""){
@@ -21,12 +24,21 @@
     } 
     if(isset($_POST['displayBtn'])){
         $_SESSION['display-month']=$_POST['month-post'];
+        if($_POST['month-post']!==''){
+            $firstParts=explode("-",$_SESSION['display-month']);
+            $yyyy=$firstParts[0];
+            $mm=$firstParts[1];
+            $yyyymm="{$yyyy}{$mm}";
+            $_SESSION['yyyymm']=$yyyymm;
+            $head_ids=$table->select('SELECT * FROM t_attendance_head WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$yyyymm]);
+            foreach($head_ids as $head_id){
+                $_SESSION['head_id']=$head_id['id'];
+            }
+        } 
     }
-    $error=new Message();
-    $table=new dbClass();
-    $login=new login();
-    $rows=$table->select('SELECT * FROM m_holiday',[]);
-    function createCalendar($rows){
+    
+    $holidays=$table->select('SELECT * FROM m_holiday',[]);
+    function createCalendar($holidays){
         $table=new dbClass();
         $weeks=['日','月','火','水','木','金','土'];
         $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
@@ -35,11 +47,11 @@
         $yyyy=$firstParts[0];
         $mm=$firstParts[1];
         $yyyymm="{$yyyy}{$mm}";
-        $calendars=$table->select("SELECT * 
+        $attendanceHeads=$table->select("SELECT * 
                         FROM t_attendance_head
                         WHERE  employee_id=:employee_id and yyyymm=:yyyymm"
                         ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$yyyymm]);
-        if(empty($calendars)){
+        if(empty($attendanceHeads)){
             $CalendarElement=
             "<table class='table mt-2'>
                 <thead class='table-dark'>
@@ -65,10 +77,10 @@
                 $mm=$firstParts[1];
                 $dd=substr($day,-2);
                 $fullDate="{$yyyy}-{$mm}-{$dd}";
-                foreach($rows as $row){
-                    if($fullDate==$row['yyyymmdd']){
+                foreach($holidays as $holidayRow){
+                    if($fullDate==$holidayRow['yyyymmdd']){
                         $holiday=true;
-                        $holidayValue=$row['holiday_name'];
+                        $holidayValue=$holidayRow['holiday_name'];
                     }
                 }
                 if($date==6){
@@ -167,422 +179,219 @@
             $CalendarElement .= "</tbody></table>";
             return $CalendarElement;
         }
-        foreach($calendars as $calendar){
-            if($calendar['status']==0){
-                $CalendarElement=
-                "<table class='table mt-2'>
-                    <thead class='table-dark'>
-                        <tr>
-                            <th>日</th>
-                            <th>曜日</th>
-                            <th>区分</th>
-                            <th>開始時間</th>
-                            <th>終了時間</th>
-                            <th>昼休憩時間</th>
-                            <th>夜休憩時間</th>
-                            <th>備考</th>
-                        </tr>
-                    </thead>";
-
-                $CalendarElement .= "<tbody>";
-                for($w=1;$w<=$lastDateOfMonth;$w++){
-                    $start_time='';
-                    $end_time='';
-                    $rest_time='';
-                    $night_rest_time='';
-                    $selected1='';
-                    $selected2='';
-                    $selected3='';
-                    $selected4='';
-                    $selected5='';
-                    $selected6='';
-                    $selected7='';
-                    $selected8='';
-                    $readonly='';
-                    $lists=$table->select("SELECT * FROM t_attendance_detail WHERE head_id=:head_id and day=:day",['head_id'=>$_SESSION['head_id'],'day'=>$w]);
-                    foreach($lists as $list){
-                        $holiday=false;
-                        $holidayValue='';
-                        $day='0'.$w;
-                        $colorClass="";
-                        $date=($firstWeekDay+$w-1)%7;
-                        $yyyy=$firstParts[0];
-                        $mm=$firstParts[1];
-                        $dd=substr($day,-2);
-                        $fullDate="{$yyyy}-{$mm}-{$dd}";
-                        foreach($rows as $row){
-                            if($fullDate==$row['yyyymmdd']){
-                                $holiday=true;
-                                $holidayValue=$row['holiday_name'];
-                            }
-                        }
-                        if($list['kbn']==1){
-                            $selected1='selected';
-                            $start_time=$list['start_time'];
-                            $end_time=$list['end_time'];
-                            $rest_time=$list['rest_time'];
-                            $night_rest_time=$list['night_rest_time'];
-                        }
-                        if($list['kbn']==2){
-                            $selected2='selected';
-                            $readonly='readonly';
-                            $colorClass='bg-danger-subtle text-danger';
-                            $start_time='';
-                            $end_time='';
-                            $rest_time='';
-                            $night_rest_time='';
-                        }
-                        if($list['kbn']==3){
-                            $selected3='selected';
-                            $readonly='readonly';
-                            $colorClass='bg-danger-subtle text-danger';
-                            $start_time='';
-                            $end_time='';
-                            $rest_time='';
-                            $night_rest_time='';
-                        }
-                        if($list['kbn']==4){
-                            $selected4='selected';
-                            $start_time=$list['start_time'];
-                            $end_time=$list['end_time'];
-                            $rest_time=$list['rest_time'];
-                            $night_rest_time=$list['night_rest_time'];
-                        }
-                        if($list['kbn']==5){
-                            $selected5='selected';
-                            $readonly='readonly';
-                            $colorClass='bg-danger-subtle text-danger';
-                        }
-                        if($list['kbn']==6){
-                            $selected6='selected';
-                            $readonly='readonly';
-                            $colorClass='bg-danger-subtle text-danger';
-                            $start_time='';
-                            $end_time='';
-                            $rest_time='';
-                            $night_rest_time='';
-                        }
-                        if($list['kbn']==7){
-                            $selected7='selected';
-                            $readonly='readonly';
-                            $colorClass='bg-danger-subtle text-danger';
-                            $start_time='';
-                            $end_time='';
-                            $rest_time='';
-                            $night_rest_time='';
-                        }
-                        if($list['kbn']==8){
-                            $selected8='selected';
-                            $readonly='readonly';
-                            $colorClass='bg-danger-subtle text-danger';
-                            $start_time='';
-                            $end_time='';
-                            $rest_time='';
-                            $night_rest_time='';
-                        }
-                        if((int)$list['kbn']!==1 && (int)$list['kbn']!==4 && $date==6){
-                            $colorClass = 'bg-primary-subtle text-primary';
-                        }
-                        if((int)$list['kbn']!==1 && (int)$list['kbn']!==4 && ($date==0 || $holiday)){
-                            $colorClass = 'bg-danger-subtle text-danger';
-                        }
-                        $CalendarElement .= "<tr>";
-                        $CalendarElement .= "<td class='$colorClass'>$w</td>";
-                        $CalendarElement .= "<label><input type='hidden' name='day[]' value={$list['day']}></label>";
-                        $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
-                        if ($date === 0 || $date === 6 || $holiday) {
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <select class='select1a form-select' name='kbn[]' value={$list['kbn']} {$readonly}>
-                                                            <option class='holiday' value=2 {$selected2}>休日</option>
-                                                            <option class='work' value=4 {$selected4}>休出</option>
-                                                        </select>
-                                                    </label>
-                                                </td>";
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input id='startWork' type='time' name='start[]' class='form-control' value='{$start_time}' {$readonly}>
-                                                    </label>
-                                                </td>";
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input id='finishWork' type='time' name='end[]' class='form-control' value='{$end_time}' {$readonly}>
-                                                    </label>
-                                                </td>";
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input id='lunch' type='time' name='lunch[]' class='form-control' value='{$rest_time}' {$readonly}>
-                                                    </label>
-                                                </td>";
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input id='dinner' type='time' name='dinner[]' class='form-control' value='{$night_rest_time}' {$readonly}>
-                                                    </label>
-                                                </td>";
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input type='text' name='text[]' class='form-control' value={$holidayValue}>
-                                                    </label>
-                                                </td>";
-                        }
-                        else {
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <select class='select1a form-select' name='kbn[]' value={$list['kbn']}>
-                                                            <option class='work'value=1 {$selected1}>出勤</option>
-                                                            <option class='holiday' value=3 {$selected3}>有給</option>
-                                                            <option class='holiday' value=5 {$selected5}>欠勤</option>
-                                                            <option class='holiday' value=6 {$selected6}>特休</option>
-                                                            <option class='holiday' value=7 {$selected7}>代休</option>
-                                                            <option class='holiday' value=8 {$selected8}>振休</option>
-                                                        </select>
-                                                    </label>
-                                                </td>";
-
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input id='startWork' type='time' name='start[]' class='form-control' value='{$start_time}' {$readonly}>
-                                                    </label>
-                                                </td>";
-
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input id='finishWork' type='time' name='end[]' class='form-control' value='{$end_time}' {$readonly}>
-                                                    </label>
-                                                </td>";
-
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input id='lunch' type='time' name='lunch[]' class='form-control' value='{$rest_time}' {$readonly}>
-                                                    </label>
-                                                </td>";
-
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input id='dinner' type='time' name='dinner[]' class='form-control' value='{$night_rest_time}' {$readonly}>
-                                                    </label>
-                                                </td>";
-
-                            $CalendarElement .= "<td class='$colorClass'>
-                                                    <label>
-                                                        <input type='text' name='text[]' class='form-control' value='{$holidayValue}'>
-                                                    </label>
-                                                </td>";
-                        }
-                        $CalendarElement .= "</tr>";
-                    }
+        else{
+            $disabled='';
+            foreach($attendanceHeads as $attendanceHead){
+                if($attendanceHead['status']==1){
+                    $disabled='disabled';
                 }
-                $CalendarElement .= "</tbody></table>";
-                return $CalendarElement;        
             }
-            if($calendar['status']==1){
-                    $CalendarElement=
-                    "<table class='table mt-2'>
-                        <thead class='table-dark'>
-                            <tr>
-                                <th>日</th>
-                                <th>曜日</th>
-                                <th>区分</th>
-                                <th>開始時間</th>
-                                <th>終了時間</th>
-                                <th>昼休憩時間</th>
-                                <th>夜休憩時間</th>
-                                <th>備考</th>
-                            </tr>
-                        </thead>";
+            $CalendarElement=
+            "<table class='table mt-2'>
+                <thead class='table-dark'>
+                    <tr>
+                        <th>日</th>
+                        <th>曜日</th>
+                        <th>区分</th>
+                        <th>開始時間</th>
+                        <th>終了時間</th>
+                        <th>昼休憩時間</th>
+                        <th>夜休憩時間</th>
+                        <th>備考</th>
+                    </tr>
+                </thead>";
 
-                    $CalendarElement .= "<tbody>";
-                    for($w=1;$w<=$lastDateOfMonth;$w++){
+            $CalendarElement .= "<tbody>";
+            for($w=1;$w<=$lastDateOfMonth;$w++){
+                $start_time='';
+                $end_time='';
+                $rest_time='';
+                $night_rest_time='';
+                $selected1='';
+                $selected2='';
+                $selected3='';
+                $selected4='';
+                $selected5='';
+                $selected6='';
+                $selected7='';
+                $selected8='';
+                $readonly='';
+                $attendanceDetails=$table->select("SELECT * FROM t_attendance_detail WHERE head_id=:head_id and day=:day",['head_id'=>$_SESSION['head_id'],'day'=>$w]);
+                foreach($attendanceDetails as $detail){
+                    $holiday=false;
+                    $holidayValue='';
+                    $day='0'.$w;
+                    $colorClass="";
+                    $date=($firstWeekDay+$w-1)%7;
+                    $yyyy=$firstParts[0];
+                    $mm=$firstParts[1];
+                    $dd=substr($day,-2);
+                    $fullDate="{$yyyy}-{$mm}-{$dd}";
+                    foreach($holidays as $holidayRow){
+                        if($fullDate==$holidayRow['yyyymmdd']){
+                            $holiday=true;
+                            $holidayValue=$holidayRow['holiday_name'];
+                        }
+                    }
+                    if($detail['kbn']==1){
+                        $selected1='selected';
+                        $start_time=$detail['start_time'];
+                        $end_time=$detail['end_time'];
+                        $rest_time=$detail['rest_time'];
+                        $night_rest_time=$detail['night_rest_time'];
+                    }
+                    if($detail['kbn']==2){
+                        $selected2='selected';
+                        $readonly='readonly';
+                        $colorClass='bg-danger-subtle text-danger';
                         $start_time='';
                         $end_time='';
                         $rest_time='';
                         $night_rest_time='';
-                        $selected1='';
-                        $selected2='';
-                        $selected3='';
-                        $selected4='';
-                        $selected5='';
-                        $selected6='';
-                        $selected7='';
-                        $selected8='';
-                        $readonly='';
-                        $lists=$table->select("SELECT * FROM t_attendance_detail WHERE head_id=:head_id and day=:day",['head_id'=>$_SESSION['head_id'],'day'=>$w]);
-                        foreach($lists as $list){
-                            $holiday=false;
-                            $holidayValue='';
-                            $day='0'.$w;
-                            $colorClass="";
-                            $date=($firstWeekDay+$w-1)%7;
-                            $yyyy=$firstParts[0];
-                            $mm=$firstParts[1];
-                            $dd=substr($day,-2);
-                            $fullDate="{$yyyy}-{$mm}-{$dd}";
-                            foreach($rows as $row){
-                                if($fullDate==$row['yyyymmdd']){
-                                    $holiday=true;
-                                    $holidayValue=$row['holiday_name'];
-                                }
-                            }
-                            if($list['kbn']==1){
-                                $selected1='selected';
-                                $start_time=$list['start_time'];
-                                $end_time=$list['end_time'];
-                                $rest_time=$list['rest_time'];
-                                $night_rest_time=$list['night_rest_time'];
-                            }
-                            if($list['kbn']==2){
-                                $selected2='selected';
-                                $readonly='readonly';
-                                $colorClass='bg-danger-subtle text-danger';
-                                $start_time='';
-                                $end_time='';
-                                $rest_time='';
-                                $night_rest_time='';
-                            }
-                            if($list['kbn']==3){
-                                $selected3='selected';
-                                $readonly='readonly';
-                                $colorClass='bg-danger-subtle text-danger';
-                                $start_time='';
-                                $end_time='';
-                                $rest_time='';
-                                $night_rest_time='';
-                            }
-                            if($list['kbn']==4){
-                                $selected4='selected';
-                                $start_time=$list['start_time'];
-                                $end_time=$list['end_time'];
-                                $rest_time=$list['rest_time'];
-                                $night_rest_time=$list['night_rest_time'];
-                            }
-                            if($list['kbn']==5){
-                                $selected5='selected';
-                                $readonly='readonly';
-                                $colorClass='bg-danger-subtle text-danger';
-                            }
-                            if($list['kbn']==6){
-                                $selected6='selected';
-                                $readonly='readonly';
-                                $colorClass='bg-danger-subtle text-danger';
-                                $start_time='';
-                                $end_time='';
-                                $rest_time='';
-                                $night_rest_time='';
-                            }
-                            if($list['kbn']==7){
-                                $selected7='selected';
-                                $readonly='readonly';
-                                $colorClass='bg-danger-subtle text-danger';
-                                $start_time='';
-                                $end_time='';
-                                $rest_time='';
-                                $night_rest_time='';
-                            }
-                            if($list['kbn']==8){
-                                $selected8='selected';
-                                $readonly='readonly';
-                                $colorClass='bg-danger-subtle text-danger';
-                                $start_time='';
-                                $end_time='';
-                                $rest_time='';
-                                $night_rest_time='';
-                            }
-                            if((int)$list['kbn']!==1 && (int)$list['kbn']!==4 && $date==6){
-                                $colorClass = 'bg-primary-subtle text-primary';
-                            }
-                            if((int)$list['kbn']!==1 && (int)$list['kbn']!==4 && ($date==0 || $holiday)){
-                                $colorClass = 'bg-danger-subtle text-danger';
-                            }
-                            $CalendarElement .= "<tr>";
-                            $CalendarElement .= "<td class='$colorClass'>$w</td>";
-                            $CalendarElement .= "<label><input type='hidden' name='day[]' value={$list['day']}></label>";
-                            $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
-                            if ($date === 0 || $date === 6 || $holiday) {
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <select class='select1a form-select' name='kbn[]' value={$list['kbn']} {$readonly} disabled>
-                                                                <option class='holiday' value=2 {$selected2}>休日</option>
-                                                                <option class='work' value=4 {$selected4}>休出</option>
-                                                            </select>
-                                                        </label>
-                                                    </td>";
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input id='startWork' type='time' name='start[]' class='form-control' value='{$start_time}' {$readonly} disabled>
-                                                        </label>
-                                                    </td>";
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input id='finishWork' type='time' name='end[]' class='form-control' value='{$end_time}' {$readonly} disabled>
-                                                        </label>
-                                                    </td>";
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input id='lunch' type='time' name='lunch[]' class='form-control' value='{$rest_time}' {$readonly} disabled>
-                                                        </label>
-                                                    </td>";
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input id='dinner' type='time' name='dinner[]' class='form-control' value='{$night_rest_time}' {$readonly} disabled>
-                                                        </label>
-                                                    </td>";
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input type='text' name='text[]' class='form-control' value='{$holidayValue}' disabled>
-                                                        </label>
-                                                    </td>";
-                            }
-                            else {
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <select class='select1a form-select' name='kbn[]' value={$list['kbn']} disabled>
-                                                                <option class='work'value=1 {$selected1}>出勤</option>
-                                                                <option class='holiday' value=3 {$selected3}>有給</option>
-                                                                <option class='holiday' value=5 {$selected5}>欠勤</option>
-                                                                <option class='holiday' value=6 {$selected6}>特休</option>
-                                                                <option class='holiday' value=7 {$selected7}>代休</option>
-                                                                <option class='holiday' value=8 {$selected8}>振休</option>
-                                                            </select>
-                                                        </label>
-                                                    </td>";
+                    }
+                    if($detail['kbn']==3){
+                        $selected3='selected';
+                        $readonly='readonly';
+                        $colorClass='bg-danger-subtle text-danger';
+                        $start_time='';
+                        $end_time='';
+                        $rest_time='';
+                        $night_rest_time='';
+                    }
+                    if($detail['kbn']==4){
+                        $selected4='selected';
+                        $start_time=$detail['start_time'];
+                        $end_time=$detail['end_time'];
+                        $rest_time=$detail['rest_time'];
+                        $night_rest_time=$detail['night_rest_time'];
+                    }
+                    if($detail['kbn']==5){
+                        $selected5='selected';
+                        $readonly='readonly';
+                        $colorClass='bg-danger-subtle text-danger';
+                    }
+                    if($detail['kbn']==6){
+                        $selected6='selected';
+                        $readonly='readonly';
+                        $colorClass='bg-danger-subtle text-danger';
+                        $start_time='';
+                        $end_time='';
+                        $rest_time='';
+                        $night_rest_time='';
+                    }
+                    if($detail['kbn']==7){
+                        $selected7='selected';
+                        $readonly='readonly';
+                        $colorClass='bg-danger-subtle text-danger';
+                        $start_time='';
+                        $end_time='';
+                        $rest_time='';
+                        $night_rest_time='';
+                    }
+                    if($detail['kbn']==8){
+                        $selected8='selected';
+                        $readonly='readonly';
+                        $colorClass='bg-danger-subtle text-danger';
+                        $start_time='';
+                        $end_time='';
+                        $rest_time='';
+                        $night_rest_time='';
+                    }
+                    if((int)$detail['kbn']!==1 && (int)$detail['kbn']!==4 && $date==6){
+                        $colorClass = 'bg-primary-subtle text-primary';
+                    }
+                    if((int)$detail['kbn']!==1 && (int)$detail['kbn']!==4 && ($date==0 || $holiday)){
+                        $colorClass = 'bg-danger-subtle text-danger';
+                    }
+                    $CalendarElement .= "<tr>";
+                    $CalendarElement .= "<td class='$colorClass'>$w</td>";
+                    $CalendarElement .= "<label><input type='hidden' name='day[]' value={$detail['day']}></label>";
+                    $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
+                    if ($date === 0 || $date === 6 || $holiday) {
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <select class='select1a form-select' name='kbn[]' value={$detail['kbn']} {$readonly} {$disabled}>
+                                                        <option class='holiday' value=2 {$selected2}>休日</option>
+                                                        <option class='work' value=4 {$selected4}>休出</option>
+                                                    </select>
+                                                </label>
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='startWork' type='time' name='start[]' class='form-control' value='{$start_time}' {$readonly} {$disabled}>
+                                                </label>
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='finishWork' type='time' name='end[]' class='form-control' value='{$end_time}' {$readonly} {$disabled}>
+                                                </label>
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='lunch' type='time' name='lunch[]' class='form-control' value='{$rest_time}' {$readonly} {$disabled}>
+                                                </label>
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='dinner' type='time' name='dinner[]' class='form-control' value='{$night_rest_time}' {$readonly} {$disabled}>
+                                                </label>
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input type='text' name='text[]' class='form-control' value='{$holidayValue}'{$disabled}>
+                                                </label>
+                                            </td>";
+                    }
+                    else {
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <select class='select1a form-select' name='kbn[]' value={$detail['kbn']} {$disabled}>
+                                                        <option class='work'value=1 {$selected1}>出勤</option>
+                                                        <option class='holiday' value=3 {$selected3}>有給</option>
+                                                        <option class='holiday' value=5 {$selected5}>欠勤</option>
+                                                        <option class='holiday' value=6 {$selected6}>特休</option>
+                                                        <option class='holiday' value=7 {$selected7}>代休</option>
+                                                        <option class='holiday' value=8 {$selected8}>振休</option>
+                                                    </select>
+                                                </label>
+                                            </td>";
 
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input id='startWork' type='time' name='start[]' class='form-control' value='{$start_time}' {$readonly} disabled> 
-                                                        </label>
-                                                    </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='startWork' type='time' name='start[]' class='form-control' value='{$start_time}' {$readonly} {$disabled}>
+                                                </label>
+                                            </td>";
 
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input id='finishWork' type='time' name='end[]' class='form-control' value='{$end_time}' {$readonly} disabled>
-                                                        </label>
-                                                    </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='finishWork' type='time' name='end[]' class='form-control' value='{$end_time}' {$readonly} {$disabled}>
+                                                </label>
+                                            </td>";
 
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input id='lunch' type='time' name='lunch[]' class='form-control' value='{$rest_time}' {$readonly} disabled>
-                                                        </label>
-                                                    </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='lunch' type='time' name='lunch[]' class='form-control' value='{$rest_time}' {$readonly} {$disabled}>
+                                                </label>
+                                            </td>";
 
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input id='dinner' type='time' name='dinner[]' class='form-control' value='{$night_rest_time}' {$readonly} disabled>
-                                                        </label>
-                                                    </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='dinner' type='time' name='dinner[]' class='form-control' value='{$night_rest_time}' {$readonly} {$disabled}>
+                                                </label>
+                                            </td>";
 
-                                $CalendarElement .= "<td class='$colorClass'>
-                                                        <label>
-                                                            <input type='text' name='text[]' class='form-control' value='{$holidayValue}' disabled>
-                                                        </label>
-                                                    </td>";
-                            }
-                            $CalendarElement .= "</tr>";
-                        }
-                    }  
-                    $CalendarElement .= "</tbody></table>";      
-                    return $CalendarElement;       
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input type='text' name='text[]' class='form-control' value='{$holidayValue}' {$disabled}>
+                                                </label>
+                                            </td>";
+                    }
+                    $CalendarElement .= "</tr>";
                 }
-        }
+            }
+            $CalendarElement .= "</tbody></table>";
+            return $CalendarElement;        
+        }        
     }
     ?> 
     <script>
@@ -617,7 +426,6 @@
             $(document).on("click", "#appModalBtn", function () {
                 $("#alert").remove();
                 $("#appModal").modal("hide");
-                $('[name="fill"]').prop("disabled", true);
             })
             
         })
@@ -668,6 +476,10 @@
         <div class="container">
             <h1>勤怠入力</h1>
             <?php
+            $attendanceHeads=$table->select('SELECT * 
+                                FROM t_attendance_head 
+                                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
+                                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
             if(isset($_POST['displayBtn'])){
                 if($_SESSION['display-month']==''){
                     echo $error->alert('alert-danger',"年月が選択されていません。");
@@ -675,10 +487,208 @@
             }
             if(isset($_POST['saveBtn'])){
                 echo $error->alert('alert-primary',"保存が完了しました。");
+                /* 休憩時間を秒に直す関数 */
+                function timeToSeconds($rest){
+                    if(empty($rest)){
+                        return 0;
+                    }
+                    else{
+                        $list=explode(":",$rest);
+                        return (int)$list[0]*3600+(int)$list[1]*60;
+                    }
+                }                                
+                $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
+                $day=[];
+                foreach($_POST['day'] as $value){
+                    $day[]=$value;
+                }
+                $kbn=[];
+                foreach($_POST['kbn'] as $value){
+                    $kbn[]=$value;
+                }
+                $start_time=[];
+                foreach($_POST['start'] as $value){
+                    $start_time[]=$value;
+                }
+                $end_time=[];
+                foreach($_POST['end'] as $value){
+                    $end_time[]=$value;
+                }
+                $rest_time=[];
+                foreach($_POST['lunch'] as $value){
+                    $rest_time[]=$value;
+                }
+                $night_rest_time=[];
+                foreach($_POST['dinner'] as $value){
+                    $night_rest_time[]=$value;
+                }
+                $remarks=[];
+                foreach($_POST['text'] as $value){
+                    $remarks[]=$value;
+                }
+                $work_time=[];
+                $operation=[];
+                $over_time=[];
+                if(empty($attendanceHeads)){
+                    try{
+                        $table->begin();
+                        $table->dbAccess('INSERT INTO t_attendance_head (employee_id,yyyymm,status) VALUES(:employee_id,:yyyymm,0)',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                        $head_ids=$table->select('SELECT * FROM t_attendance_head WHERE employee_id=:employee_id',['employee_id'=>$_SESSION['id']]);
+                        foreach($head_ids as $head_id){
+                            $_SESSION['head_id']=$head_id['id'];
+                        }
+                        for($i=0;$i<$lastDateOfMonth;$i++){
+                            /* 稼働時間を秒にして計算 */
+                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
+                            /* 稼働時間を秒から時間に変換 */
+                            $operation[]=gmdate('H:i:s',$work_time[$i]);
+                            if($work_time[$i]>28800){
+                                $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
+                            }
+                            else{
+                                $over_time[$i]='00:00';
+                            }
+                            $table->dbAccess('INSERT INTO t_attendance_detail 
+                            (head_id,day,kbn,start_time,end_time,rest_time,night_rest_time,work_time,over_time,remarks)
+                            VALUES(:head_id,:day,:kbn,:start_time,:end_time,:rest_time,:night_rest_time,:work_time,:over_time,:remarks)'
+                            ,['head_id'=>$_SESSION['head_id'],'day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'remarks'=>$remarks[$i]]);
+                        }
+                        $table->commit();
+                        }
+                    catch(Exception $ex){
+                        $table->rollback();
+                        exit();
+                    }
+                    /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
+                    $attendanceHeads=$table->select('SELECT * 
+                FROM t_attendance_head 
+                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
+                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                }
+                else{
+                    try{
+                        $table->begin();
+                        for($i=0;$i<$lastDateOfMonth;$i++){
+                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
+                            $operation[]=gmdate('H:i:s',$work_time[$i]);
+                            if($work_time[$i]>28800){
+                                $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
+                            }
+                            else{
+                                $over_time[$i]='00:00:00';
+                            }
+                            $table->dbAccess('UPDATE t_attendance_detail
+                            set day=:day,kbn=:kbn,start_time=:start_time,end_time=:end_time,rest_time=:rest_time,night_rest_time=:night_rest_time,work_time=:work_time,over_time=:over_time,remarks=:remarks
+                            WHERE head_id=:head_id and day=:day;'
+                            ,['day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'remarks'=>$remarks[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'head_id'=>$_SESSION['head_id']]);
+                        }
+                        $table->commit();
+                    }
+                    catch(Exception $ex){
+                        $table->rollback();
+                        exit();
+                    }
+                }
+                /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
+                $attendanceHeads=$table->select('SELECT * 
+                FROM t_attendance_head 
+                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
+                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
             }
             if(isset($_POST['appModalBtn'])){
                 echo $error->alert('alert-success','申請が完了しました。');
-                $table->iud('UPDATE t_attendance_head SET status=1 WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                function timeToSeconds($rest){
+                    if(empty($rest)){
+                        return 0;
+                    }
+                    else{
+                        $list=explode(":",$rest);
+                        return (int)$list[0]*3600+(int)$list[1]*60;
+                    }
+                }                                
+                $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
+                $day=[];
+                foreach($_POST['day'] as $value){
+                    $day[]=$value;
+                }
+                $kbn=[];
+                foreach($_POST['kbn'] as $value){
+                    $kbn[]=$value;
+                }
+                $start_time=[];
+                foreach($_POST['start'] as $value){
+                    $start_time[]=$value;
+                }
+                $end_time=[];
+                foreach($_POST['end'] as $value){
+                    $end_time[]=$value;
+                }
+                $rest_time=[];
+                foreach($_POST['lunch'] as $value){
+                    $rest_time[]=$value;
+                }
+                $night_rest_time=[];
+                foreach($_POST['dinner'] as $value){
+                    $night_rest_time[]=$value;
+                }
+                $remarks=[];
+                foreach($_POST['text'] as $value){
+                    $remarks[]=$value;
+                }
+                $work_time=[];
+                $operation=[];
+                $over_time=[];
+                if(empty($attendanceHeads)){
+                    try{
+                        $table->begin();
+                        $table->dbAccess('INSERT INTO t_attendance_head (employee_id,yyyymm,status) VALUES(:employee_id,:yyyymm,1)',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                        $head_ids=$table->select('SELECT * FROM t_attendance_head WHERE employee_id=:employee_id',['employee_id'=>$_SESSION['id']]);
+                        foreach($head_ids as $head_id){
+                            $_SESSION['head_id']=$head_id['id'];
+                        }
+                        for($i=0;$i<$lastDateOfMonth;$i++){
+                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
+                            $operation[]=gmdate('H:i:s',$work_time[$i]);
+                            if($work_time[$i]>28800){
+                                $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
+                            }
+                            else{
+                                $over_time[$i]='00:00';
+                            }
+                            $table->dbAccess('INSERT INTO t_attendance_detail 
+                            (head_id,day,kbn,start_time,end_time,rest_time,night_rest_time,work_time,over_time,remarks)
+                            VALUES(:head_id,:day,:kbn,:start_time,:end_time,:rest_time,:night_rest_time,:work_time,:over_time,:remarks)'
+                            ,['head_id'=>$_SESSION['head_id'],'day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'remarks'=>$remarks[$i]]);
+                        }
+                        $table->commit();
+                        }
+                    catch(Exception $ex){
+                        $table->rollback();
+                        exit();
+                    }
+                    /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
+                    $attendanceHeads=$table->select('SELECT * 
+                    FROM t_attendance_head 
+                    WHERE employee_id=:employee_id and yyyymm=:yyyymm'
+                    ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                }
+                else{
+                    try{
+                        $table->begin();
+                        $table->dbAccess('UPDATE t_attendance_head SET status=1 WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                        $table->commit();
+                    }
+                    catch(Exception $ex){
+                        $table->rollback();
+                        exit();
+                    }
+                }
+                /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
+                $attendanceHeads=$table->select('SELECT * 
+                FROM t_attendance_head 
+                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
+                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                
             }
             ?>
             <form method="POST">
@@ -689,7 +699,7 @@
                     <div class="card-body">
                         <label for="date">年月:</label>
                         <div class="input-group w-25">
-                            <input type="month" id="month-post" name="month-post" class="form-control" value="<?php if(isset($_POST['month-post'])){echo $_SESSION['display-month'];}elseif(isset($_POST['saveBtn'])){echo $_SESSION['display-month'];}else{echo $firstValue;}?>">
+                            <input type="month" id="month-post" name="month-post" class="form-control" value="<?php if(isset($_POST['month-post']) || isset($_POST['saveBtn']) || isset($_POST['appModalBtn'])){echo $_SESSION['display-month'];}else{echo $firstValue;}?>">
                         </div>
                         <div class="m-2 d-flex justify-content-end">
                             <input class="btn btn-info" id="displayBtn" name="displayBtn" type="submit" value="表示">
@@ -704,161 +714,49 @@
                     </div>
                     <div class="card-body container">
                         <div class="m-2 d-flex justify-content-end gap-2">
-                            <input class="btn btn-primary" id="saveBtn" name="saveBtn" type="submit" value="保存">
+                            <input class="btn btn-primary" id="saveBtn" name="saveBtn" type="submit" value="保存" <?php foreach($attendanceHeads as $attendanceHead){if($attendanceHead['status']==1){echo 'disabled';}}?>>
                             <button class="btn  btn-success" id="appBtn" name="appBtn" type="button" data-bs-toggle="modal"
-                                data-bs-target="#appModal">申請</button>
+                                data-bs-target="#appModal" <?php foreach($attendanceHeads as $attendanceHead){if($attendanceHead['status']==1){echo 'disabled';}}?>>申請</button>
                         </div>
                         <div id="calendar" class="mt-2">
                             <?php
                             if(isset($_POST['displayBtn'])){
                                 if($_SESSION['display-month']!==''){
-                                    $firstParts=explode("-",$_SESSION['display-month']);
-                                    $yyyy=$firstParts[0];
-                                    $mm=$firstParts[1];
-                                    $yyyymm="{$yyyy}{$mm}";
-                                    $_SESSION['yyyymm']=$yyyymm;
-                                    echo createCalendar($rows);
+                                    echo createCalendar($holidays);
                                 }
                             }
                             ?>
                             <?php
                             if(isset($_POST['saveBtn'])){
-                                function timeToSeconds($rest){
-                                    if(empty($rest)){
-                                        return 0;
-                                    }
-                                    else{
-                                        $list=explode(":",$rest);
-                                        return (int)$list[0]*3600+(int)$list[1]*60;
-                                    }
-                                }                                
-                                $calendar=$table->select('SELECT * 
-                                FROM t_attendance_head 
-                                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
-                                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-                                $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
-                                $day=[];
-                                foreach($_POST['day'] as $value){
-                                    $day[]=$value;
-                                }
-                                $kbn=[];
-                                foreach($_POST['kbn'] as $value){
-                                    $kbn[]=$value;
-                                }
-                                $start_time=[];
-                                foreach($_POST['start'] as $value){
-                                    $start_time[]=$value;
-                                }
-                                $end_time=[];
-                                foreach($_POST['end'] as $value){
-                                    $end_time[]=$value;
-                                }
-                                $rest_time=[];
-                                foreach($_POST['lunch'] as $value){
-                                    $rest_time[]=$value;
-                                }
-                                $night_rest_time=[];
-                                foreach($_POST['dinner'] as $value){
-                                    $night_rest_time[]=$value;
-                                }
-                                $remarks=[];
-                                foreach($_POST['text'] as $value){
-                                    $remarks[]=$value;
-                                }
-                                $work_time=[];
-                                $operation=[];
-                                $over=[];
-                                $over_time=[];
-                                if(empty($calendar)){
-                                    try{
-                                        $table->begin();
-                                        $table->iud('INSERT INTO t_attendance_head (employee_id,yyyymm,status) VALUES(:employee_id,:yyyymm,0)',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-                                        $head_ids=$table->select('SELECT * FROM t_attendance_head WHERE employee_id=:employee_id',['employee_id'=>$_SESSION['id']]);
-                                        foreach($head_ids as $head_id){
-                                            $_SESSION['head_id']=$head_id['id'];
-                                        }
-                                        for($i=0;$i<$lastDateOfMonth;$i++){
-                                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
-                                            $operation[]=gmdate('H:i:s',$work_time[$i]);
-                                            if($work_time[$i]>28800){
-                                                $over[]=$work_time[$i]-28800;
-                                                $over_time[]=gmdate('H:i:s',$over[$i]);
-                                            }
-                                            else{
-                                                $over_time[$i]='00:00';
-                                            }
-                                            $table->iud('INSERT INTO t_attendance_detail 
-                                            (head_id,day,kbn,start_time,end_time,rest_time,night_rest_time,work_time,over_time,remarks)
-                                            VALUES(:head_id,:day,:kbn,:start_time,:end_time,:rest_time,:night_rest_time,:work_time,:over_time,:remarks)'
-                                            ,['head_id'=>$_SESSION['head_id'],'day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'remarks'=>$remarks[$i]]);
-                                        }
-                                        $table->cmt();
-                                        echo createCalendar($rows);
-                                        exit();
-                                        }
-                                    catch(Exception $ex){
-                                        $table->rlb();
-                                        exit();
-                                    }
-                                }
-                                else{
-                                    try{
-                                        $table->begin();
-                                        for($i=0;$i<$lastDateOfMonth;$i++){
-                                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
-                                            $operation[]=gmdate('H:i:s',$work_time[$i]);
-                                            if($work_time[$i]>28800){
-                                                $over[]=$work_time[$i]-28800;
-                                                $over_time[]=gmdate('H:i:s',$over[$i]);
-                                            }
-                                            else{
-                                                $over_time[$i]='00:00:00';
-                                            }
-                                            $table->iud('UPDATE t_attendance_detail
-                                            set day=:day,kbn=:kbn,start_time=:start_time,end_time=:end_time,rest_time=:rest_time,night_rest_time=:night_rest_time,work_time=:work_time,over_time=:over_time,remarks=:remarks
-                                            WHERE head_id=:head_id and day=:day;'
-                                            ,['day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'remarks'=>$remarks[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'head_id'=>$_SESSION['head_id']]);
-                                        }
-                                        $table->cmt();
-                                        echo createCalendar($rows);
-                                        exit();
-                                    }
-                                    catch(Exception $ex){
-                                        $table->rlb();
-                                        exit();
-                                    }
-                                }
+                                echo createCalendar($holidays);
                             }
                             if(isset($_POST['appModalBtn'])){
-                                echo createCalendar($rows);
+                                echo createCalendar($holidays);
                             }
                             ?>
                         </div>
                     </div>
-                </form>
+                </div>
             </div>
-        </div>
 
         <!-- モーダル -->
-        <div class="modal fade" id="appModal" tabindex="-1" aria-labelledby="appModalLabel">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-info">
-                        <h1 class="modal-title fs-5 text-white" id="appModalLabel">勤怠申請</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>入力した勤怠を申請しますか？</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                        <form method="POST">
+            <div class="modal fade" id="appModal" tabindex="-1" aria-labelledby="appModalLabel">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info">
+                            <h1 class="modal-title fs-5 text-white" id="appModalLabel">勤怠申請</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>入力した勤怠を申請しますか？</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
                             <input id="appModalBtn" name="appModalBtn" type="submit" class="btn btn-success" value="申請">
+                        </div><!-- /.modal-footer -->
                         </form>
-                        
-                    </div><!-- /.modal-footer -->
-                </div><!-- /.modal-content -->
-            </div><!-- /.modal-dialog -->
-        </div><!-- /.modal -->
-    </main>
-</body>
+                    </div><!-- /.modal-content -->
+                </div><!-- /.modal-dialog -->
+            </div><!-- /.modal -->
+        </main>
+    </body>

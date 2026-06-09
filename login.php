@@ -9,6 +9,8 @@
     require_once './messageClass.php';
     require_once './dbClass.php';
     session_start();
+    date_default_timezone_set('Asia/Tokyo');
+    $firstDate=new DateTime();
     $error=new Message();
     $table=new dbClass();
     if(isset($_POST['mail-post']) && isset($_POST['password-post'])){
@@ -19,6 +21,12 @@
             foreach($rows as $row){
                 $_SESSION['id']=$row['id'];
             }
+            /* 勤怠画面に現在の年月を初期値にするように設定 */
+            $firstValue=$firstDate->format('Y-m');
+            $yyyy=$firstValue[0];
+            $mm=$firstValue[1];
+            $yyyymm="{$yyyy}{$mm}";
+            $_SESSION['yyyymm']=$yyyymm;
             header('Location:./kintai.php');
         }
         else{

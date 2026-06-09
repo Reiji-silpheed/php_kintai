@@ -3,9 +3,11 @@ require_once './dbClass.php';
 require_once './loginClass.php';
 require_once './messageClass.php';
 session_start();
+/* ログインしていない状態で社員マスタ管理画面に入れないようにした */
 if(isset($_SESSION['mail'])==""){
     header('Location:./login.php');
 }
+/* エラーメッセージが出たときに入力した文字がもう一度出るようにした */
 if(isset($_GET['searchBtn'])){
     $_SESSION['search-number']=$_GET['number-search-get'];
     $_SESSION['search-name']=$_GET['name-search-get'];
@@ -77,14 +79,14 @@ if(isset($_POST['newAppModal-post'])){
             $error->setError('new-password',"パスワードが一致しません");
         }
         if(empty($error->error)){
-            $table->iud("INSERT INTO m_employee (employee_no,employee_name,email,start_date,password)VALUES(:employee_no,:employee_name,:email,:start_date,:password)",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post'],'password'=>$_POST['password-new-post']]);
-            $table->cmt();
+            $table->dbAccess("INSERT INTO m_employee (employee_no,employee_name,email,start_date,password)VALUES(:employee_no,:employee_name,:email,:start_date,:password)",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post'],'password'=>$_POST['password-new-post']]);
+            $table->commit();
             header("Location:employeeMaster.php?{$_SESSION['url']}");
             exit();
         }
     }
     catch(Exception $ex){
-        $table->rlb();
+        $table->rollback();
     }
 }
 #更新モーダル
@@ -104,21 +106,21 @@ if(isset($_POST['updateModalBtn'])){
             $error->setError('update-password',"パスワードが一致していません");
         }
         if(empty($error->error) && $_SESSION['update-password']==''){
-            $table->iud("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'id'=>$_POST['radio-update-id']]);
-            $table->cmt();
+            $table->dbAccess("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'id'=>$_POST['radio-update-id']]);
+            $table->commit();
             header("Location:employeeMaster.php?{$_SESSION['url']}");
             exit();
         }
         if(empty($error->error) && $_SESSION['update-password']!==''){
-            $table->iud("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date,password=:password WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'password'=>$_POST['password-update-post'],'id'=>$_POST['radio-update-id']]);
-            $table->cmt();
+            $table->dbAccess("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date,password=:password WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'password'=>$_POST['password-update-post'],'id'=>$_POST['radio-update-id']]);
+            $table->commit();
             header("Location:employeeMaster.php?{$_SESSION['url']}");
             exit();
         }
 
     }
     catch(Exception $ex){
-        $table->rlb();
+        $table->rollback();
     }
 }
 
@@ -126,13 +128,13 @@ if(isset($_POST['updateModalBtn'])){
 if(isset($_POST['delModalBtn'])){
     $table->begin();
     try{
-        $table->iud("DELETE FROM m_employee WHERE id=:id",['id'=>$_SESSION['radio-del-id']]);
-        $table->cmt();
+        $table->dbAccess("DELETE FROM m_employee WHERE id=:id",['id'=>$_SESSION['radio-del-id']]);
+        $table->commit();
         header("Location:employeeMaster.php?{$_SESSION['url']}");
         exit();
     }
     catch(Exception $ex){
-        $table->rlb();
+        $table->rollback();
     }
 }
 ?>

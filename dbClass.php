@@ -7,10 +7,10 @@ class dbClass{
     public function begin(){
         return $this->db->beginTransaction();
     }
-    public function cmt(){
+    public function commit(){
         return $this->db->commit();
     }
-    public function rlb(){
+    public function rollback(){
         return $this->db->rollback();
     }
     public function select($sql,$param){
@@ -18,7 +18,7 @@ class dbClass{
         $sth->execute($param);
         return $sth->fetchAll();
     }
-    public function iud($sql,$param){
+    public function dbAccess($sql,$param){
         $sth=$this->db->prepare($sql);
         $sth->execute($param);
     }
