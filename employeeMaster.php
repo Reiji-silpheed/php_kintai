@@ -219,10 +219,11 @@ if(isset($_POST['delModalBtn'])){
                             </a>
                             <ul class="dropdown-menu">
                                 <li><a id="employeeMaster" class="dropdown-item active" href="#">社員マスタ管理</a></li>
+                                <li><a class="dropdown-item" href="holiday.php">祝日マスタ管理</a></li>
                             </ul>
                         </li>
                         <li class="nav-item">
-                            <a href="logout.php" id="logout" class="nav-link" aria-disabled="true">ログアウト</a>
+                            <a href="login.php" id="logout" class="nav-link" aria-disabled="true">ログアウト</a>
                         </li>
                     </ul>
                 </div><!-- /.navbar-collapse -->
