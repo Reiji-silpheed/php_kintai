@@ -7,12 +7,13 @@ session_start();
 if(isset($_SESSION['mail'])==""){
     header('Location:./login.php');
 }
-/* エラーメッセージが出たときに入力した文字がもう一度出るようにした */
+
 if(isset($_GET['searchBtn'])){
     $_SESSION['search-number']=$_GET['number-search-get'];
     $_SESSION['search-name']=$_GET['name-search-get'];
     $_SESSION['search-mail']=$_GET['mail-search-get'];
     $_SESSION['search-calendar']=$_GET['calendar-search-get'];
+    $_SESSION['search-authority']=$_GET['authority-search-get'];
 }
 if(isset($_GET['cBtn'])){
     $_SESSION['search-number']='';
@@ -20,7 +21,9 @@ if(isset($_GET['cBtn'])){
     $_SESSION['search-mail']='';
     $_SESSION['search-calendar']='';
     $_SESSION['url']='';
+    $_SESSION['search-authority']='';
 }
+/* エラーメッセージが出たときに入力した文字がもう一度出るようにした */
 if(isset($_POST['newAppModal-post'])){
     $_SESSION['new-number']=$_POST['number-new-post'];
     $_SESSION['new-name']=$_POST['name-new-post'];
@@ -28,7 +31,7 @@ if(isset($_POST['newAppModal-post'])){
     $_SESSION['new-mail']=$_POST['mail-new-post'];
     $_SESSION['new-password']=$_POST['password-new-post'];
     $_SESSION['new-confirmationPassword']=$_POST['confirmationPassword-new-post'];
-
+    $_SESSION['new-authority']=$_POST['authority-new-post'];
 }
 if(isset($_POST['updateModalBtn'])){
     $_SESSION['radio-update-id']=$_POST['radio-update-id'];
@@ -38,6 +41,7 @@ if(isset($_POST['updateModalBtn'])){
     $_SESSION['update-mail']=$_POST['mail-update-post'];
     $_SESSION['update-password']=$_POST['password-update-post'];
     $_SESSION['update-confirmationPassword']=$_POST['confirmationPassword-update-post'];
+    $_SESSION['update-authority']=$_POST['authority-update-post'];
 }
 if(isset($_POST['delModalBtn'])){
     $_SESSION['radio-del-id']=$_POST['radio-del-id'];
@@ -79,7 +83,7 @@ if(isset($_POST['newAppModal-post'])){
             $error->setError('new-password',"パスワードが一致しません");
         }
         if(empty($error->error)){
-            $table->dbAccess("INSERT INTO m_employee (employee_no,employee_name,email,start_date,password)VALUES(:employee_no,:employee_name,:email,:start_date,:password)",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post'],'password'=>$_POST['password-new-post']]);
+            $table->dbAccess("INSERT INTO m_employee (employee_no,employee_name,email,start_date,password,role_cd)VALUES(:employee_no,:employee_name,:email,:start_date,:password,:role_cd)",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post'],'password'=>$_POST['password-new-post'],'role_cd'=>$_POST['authority-new-post']]);
             $table->commit();
             header("Location:employeeMaster.php?{$_SESSION['url']}");
             exit();
@@ -106,13 +110,13 @@ if(isset($_POST['updateModalBtn'])){
             $error->setError('update-password',"パスワードが一致していません");
         }
         if(empty($error->error) && $_SESSION['update-password']==''){
-            $table->dbAccess("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'id'=>$_POST['radio-update-id']]);
+            $table->dbAccess("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date,role_cd=:role_cd WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'role_cd'=>$_POST['authority-update-post'],'id'=>$_POST['radio-update-id']]);
             $table->commit();
             header("Location:employeeMaster.php?{$_SESSION['url']}");
             exit();
         }
         if(empty($error->error) && $_SESSION['update-password']!==''){
-            $table->dbAccess("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date,password=:password WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'password'=>$_POST['password-update-post'],'id'=>$_POST['radio-update-id']]);
+            $table->dbAccess("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date,password=:password,role_cd=:role_cd WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'password'=>$_POST['password-update-post'],'role_cd'=>$_POST['authority-update-post'],'id'=>$_POST['radio-update-id']]);
             $table->commit();
             header("Location:employeeMaster.php?{$_SESSION['url']}");
             exit();
@@ -170,6 +174,13 @@ if(isset($_POST['delModalBtn'])){
                 $("#mail-update-post-text").val(mail);
                 $("#mail-update-post").val(mail);
                 $("#mail-update-post-text").prop("disabled",true);
+                const authority=row.find("td").eq(5).text();
+                if(authority==='一般'){
+                    $("#authority0").prop("selected",true);
+                }
+                if(authority==="管理者"){
+                    $("#authority1").prop("selected",true);
+                }
             })
 
         
@@ -259,22 +270,30 @@ if(isset($_POST['delModalBtn'])){
                                     <div class="col-2">
                                         <label for="number-search-get" class="form-label">社員番号:</label>
                                         <!-- 何も入力されていないときにエラーが出るようにした -->
-                                        <input type="text" class="form-control" id="number-search-get" name="number-search-get" value="<?php if(isset($_SESSION['search-number'])){echo $_SESSION['search-number'];}else{echo '';}; ?>">
+                                        <input type="text" class="form-control" id="number-search-get" name="number-search-get" value="<?php if(isset($_GET['number-search-get'])){echo $_SESSION['search-number'];}else{echo '';}; ?>">
                                     </div>
 
-                                    <div class="col-4">
+                                    <div class="col-3">
                                         <label for="name-search-get" class="form-label">社員名:</label>
-                                        <input type="text" class="form-control" id="name-search-get" name="name-search-get" value="<?php if(isset($_SESSION['search-name'])){echo $_SESSION['search-name'];}else{echo '';}?>">
+                                        <input type="text" class="form-control" id="name-search-get" name="name-search-get" value="<?php if(isset($_GET['name-search-get'])){echo $_SESSION['search-name'];}else{echo '';}?>">
                                     </div>
 
-                                    <div class="col-4">
+                                    <div class="col-3">
                                         <label for="mail-search-get" class="form-label">メールアドレス:</label>
-                                        <input type="text" class="form-control" id="mail-search-get" name="mail-search-get" value="<?php if(isset($_SESSION['search-mail'])){echo $_SESSION['search-mail'];}else{echo '';}?>">
+                                        <input type="text" class="form-control" id="mail-search-get" name="mail-search-get" value="<?php if(isset($_GET['mail-search-get'])){echo $_SESSION['search-mail'];}else{echo '';}?>">
                                     </div>
 
                                     <div class="col-2">
                                         <label for="calendar-search-get" class="form-label">入社日:</label>
-                                        <input type="date" class="form-control" id="calendar-search-get" name="calendar-search-get" value="<?php if(isset($_SESSION['search-calendar'])){echo $_SESSION['search-calendar'];}else{echo '';}?>">
+                                        <input type="date" class="form-control" id="calendar-search-get" name="calendar-search-get" value="<?php if(isset($_GET['calendar-search-get'])){echo $_SESSION['search-calendar'];}else{echo '';}?>">
+                                    </div>
+                                    <div class="col-2">
+                                        <label for="authority-search-get" class="form-label">権限:</label>
+                                        <select class="form-select" id="authority-search-get" name="authority-search-get">
+                                            <option value="" <?php if($_SESSION['search-authority']==''){echo 'selected';}?> hidden></option>
+                                            <option value=0 <?php if(isset($_GET['authority-search-get'])){if($_SESSION['search-authority']==0){echo 'selected';}}?>>一般</option>
+                                            <option value=1 <?php if(isset($_GET['authority-search-get'])){if($_SESSION['search-authority']==1){echo 'selected';}}?>>管理者</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -319,6 +338,7 @@ if(isset($_POST['delModalBtn'])){
                                             <th scope="col">社員名</th>
                                             <th scope="col">メールアドレス</th>
                                             <th scope="col">入社日</th>
+                                            <th scope="col">権限</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -368,6 +388,11 @@ if(isset($_POST['delModalBtn'])){
                                                 $param['start_date']=$_GET['calendar-search-get'];
                                             }
                                             $url.="&calendar-search-get={$_GET['calendar-search-get']}";
+                                            if($_GET['authority-search-get']!==''){
+                                                $list[]='role_cd=:role_cd';
+                                                $param['role_cd']=$_GET['authority-search-get'];
+                                            }
+                                            $url.="&authority-search-get={$_GET['authority-search-get']}";
                                             $url.="&searchBtn=検索";
                                             $_SESSION['url']=$url;
                                             if(!empty($list)){
@@ -396,6 +421,7 @@ if(isset($_POST['delModalBtn'])){
                                                 <td><?php echo $row['employee_name'];?></td>
                                                 <td><?php echo $row['email'];?></td>
                                                 <td><?php echo $row['start_date'];?></td>
+                                                <td><?php if($row['role_cd']==0){echo "一般";}elseif($row['role_cd']==1){echo "管理者";}?></td>
                                                 </tr>   
                                             <?php endforeach?>
                                         <?php endif?>
@@ -452,7 +478,7 @@ if(isset($_POST['delModalBtn'])){
                                     <div class="card-body">
                                         <div class="container">
                                             <div class="row">
-                                                <div class="col-4">
+                                                <div class="col-3">
                                                     <label for="number-new-post" class="form-label ">社員番号:</label>
                                                     <input type="text" class="form-control <?php echo $error->invalid('new-number');?>" id="number-new-post" name="number-new-post" value="<?php if(isset($_POST['number-new-post'])){echo $_SESSION['new-number'];}else{echo "";}?>" >
                                                     <?php echo $error->getError('new-number');?>
@@ -464,10 +490,17 @@ if(isset($_POST['delModalBtn'])){
                                                     <?php echo $error->getError('new-name');?>
                                                 </div>
 
-                                                <div class="col-4">
+                                                <div class="col-3">
                                                     <label for="calendar-new-post" class="form-label?>">入社日:</label>
                                                     <input type="date" class="form-control <?php echo $error->invalid('new-start_date');?>" id="calendar-new-post" name="calendar-new-post" value="<?php if(isset($_POST['calendar-new-post'])){echo $_SESSION['new-calendar'];}else{echo "";}?>">
                                                     <?php echo $error->getError('new-start_date');?>
+                                                </div>
+                                                <div class="col-2">
+                                                    <label for="authority-new-post" class="form-label">権限:</label>
+                                                    <select class="form-select" id="authority-new-post" name="authority-new-post">
+                                                        <option value="0" <?php if(isset($_POST['authority-new-post'])){if($_SESSION['new-authority']==0){echo 'selected';}}?>>一般</option>
+                                                        <option value="1" <?php if(isset($_POST['authority-new-post'])){if($_SESSION['new-authority']==1){echo 'selected';}}?>>管理者</option>
+                                                    </select>
                                                 </div>
 
                                                 <div class="col-4 mt-2">
@@ -533,7 +566,7 @@ if(isset($_POST['delModalBtn'])){
                                     <div class="card-body">
                                         <div class="container">
                                             <div class="row">
-                                                <div class="col-4">
+                                                <div class="col-3">
                                                     <label for="number-update-post" class="form-label">社員番号:</label>
                                                     <input type="text" class="form-control <?php echo $error->invalid('update-number');?>" id="number-update-post" name="number-update-post" value="<?php if(isset($_POST['number-update-post'])){echo $_SESSION['update-number'];}else{echo '';}?>">
                                                     <?php echo $error->getError('update-number');?>
@@ -545,10 +578,17 @@ if(isset($_POST['delModalBtn'])){
                                                     <?php echo $error->getError('update-name');?>
                                                 </div>
 
-                                                <div class="col-4">
+                                                <div class="col-3">
                                                     <label for="calendar-update-post" class="form-label ">入社日:</label>
                                                     <input type="date" class="form-control <?php echo $error->invalid('update-start_date')?>" id="calendar-update-post" name="calendar-update-post" value="<?php if(isset($_POST['calendar-update-post'])){echo $_SESSION['update-calendar'];}else{echo '';}?>">
                                                     <?php echo $error->getError('update-start_date');?>
+                                                </div>
+                                                <div class="col-2">
+                                                    <label for="authority-update-post" class="form-label">権限:</label>
+                                                    <select class="form-select" id="authority-update-post" name="authority-update-post">
+                                                        <option id="authority0" value="0" <?php if(isset($_POST['authority-update-post'])){if($_SESSION['update-authority']){echo 'selected';}}?>>一般</option>
+                                                        <option id="authority1" value="1" <?php if(isset($_POST['authority-update-post'])){if($_SESSION['update-authority']){echo 'selected';}}?>>管理者</option>
+                                                    </select>
                                                 </div>
 
                                                 <div class="col-4 mt-2">
@@ -570,7 +610,7 @@ if(isset($_POST['delModalBtn'])){
                                                     <?php echo $error->getError('update-confirmationPassword');?>
                                                 </div>
                                                 <!-- type=hidden:非表示にする。ラジオボタンのvalue値をここに格納し、送信する-->
-                                                <input type="hidden" id="radio-update-id" name="radio-update-id" value="<?php if(isset($_SESSION['radio-update-id'])){echo $_SESSION['radio-update-id'];}else{echo '';}?>">
+                                                <input type="hidden" id="radio-update-id" name="radio-update-id" value="<?php if(isset($_POST['radio-update-id'])){echo $_SESSION['radio-update-id'];}else{echo '';}?>">
                                             </div>
                                         </div>
                                     </div>
@@ -602,7 +642,7 @@ if(isset($_POST['delModalBtn'])){
                                 <form method="POST">
                                     <input type="submit" class="btn btn-danger" data-bs-dismiss="modal"
                                     id="delModalBtn" name="delModalBtn" value="削除">
-                                    <input type="hidden" id="radio-del-id" name="radio-del-id" value="<?php if(isset($_SESSION['radio-del-id'])){echo $_SESSION['radio-del-id'];}else{echo '';}?>">
+                                    <input type="hidden" id="radio-del-id" name="radio-del-id" value="<?php if(isset($_POST['radio-del-id'])){echo $_SESSION['radio-del-id'];}else{echo '';}?>">
                                 </form>
                             </div><!-- /.modal-footer -->
                         </div><!-- /.modal-content -->
