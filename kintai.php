@@ -6,8 +6,9 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="/php_kintai/style.css">
     <title>勤怠管理</title>
+    
     <?php
     require_once './messageClass.php';
     require_once './dbClass.php';
@@ -63,6 +64,8 @@
                         <th>終了時間</th>
                         <th>昼休憩時間</th>
                         <th>夜休憩時間</th>
+                        <th>勤務時間</th>
+                        <th>残業時間</th>
                         <th>備考</th>
                     </tr>
                 </thead>";
@@ -90,8 +93,7 @@
                     $colorClass = 'bg-danger-subtle text-danger';
                 }
                 $CalendarElement .= "<tr>";
-                $CalendarElement .= "<td class='$colorClass'>$w</td>";
-                $CalendarElement .= "<label><input type='hidden' class='$colorClass' name='day[]' value={$w}></label>";
+                $CalendarElement .= "<td class='$colorClass'>$w<input type='hidden' class='$colorClass' name='day[]' value={$w}></td>";
                 $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
                 if ($date === 0 || $date === 6 || $holiday) {
                     $CalendarElement .= "<td class='$colorClass'>
@@ -120,6 +122,16 @@
                     $CalendarElement .= "<td class='$colorClass'>
                                             <label>
                                                 <input id='dinner' type='time' name='dinner[]' class='form-control' readonly>
+                                            </label>
+                                        </td>";
+                    $CalendarElement .= "<td class='$colorClass'>
+                                            <label>
+                                                <input id='work_time' type='time' name='work_time[]' class='form-control' readonly>
+                                            </label>
+                                        </td>";
+                    $CalendarElement .= "<td class='$colorClass'>
+                                            <label>
+                                                <input id='over_time' type='time' name='over_time[]' class='form-control' readonly>
                                             </label>
                                         </td>";
                     $CalendarElement .= "<td class='$colorClass'>
@@ -167,6 +179,16 @@
                                                 <input id='dinner' type='time' name='dinner[]' class='form-control' value='00:00'>
                                             </label>
                                         </td>";
+                    $CalendarElement .= "<td class='$colorClass'>
+                                            <label>
+                                                <input id='work_time' type='time' name='work_time[]' class='form-control' readonly value='08:00'>
+                                            </label>
+                                        </td>";
+                    $CalendarElement .= "<td class='$colorClass'>
+                                            <label>
+                                                <input id='over_time' type='time' name='over_time[]' class='form-control' readonly value='00:00'>
+                                            </label>
+                                        </td>";
 
                     $CalendarElement .= "<td class='$colorClass'>
                                             <label>
@@ -197,6 +219,8 @@
                         <th>終了時間</th>
                         <th>昼休憩時間</th>
                         <th>夜休憩時間</th>
+                        <th>勤務時間</th>
+                        <th>残業時間</th>
                         <th>備考</th>
                     </tr>
                 </thead>";
@@ -207,6 +231,10 @@
                 $end_time='';
                 $rest_time='';
                 $night_rest_time='';
+                $work_time='';
+                $new_work_time='';
+                $over_time='';
+                $new_over_time='';
                 $selected1='';
                 $selected2='';
                 $selected3='';
@@ -239,6 +267,8 @@
                         $end_time=$detail['end_time'];
                         $rest_time=$detail['rest_time'];
                         $night_rest_time=$detail['night_rest_time'];
+                        $work_time=$detail['work_time'];
+                        $over_time=$detail['over_time'];
                     }
                     if($detail['kbn']==2){
                         $selected2='selected';
@@ -248,6 +278,8 @@
                         $end_time='';
                         $rest_time='';
                         $night_rest_time='';
+                        $work_time='';
+                        $over_time='';
                     }
                     if($detail['kbn']==3){
                         $selected3='selected';
@@ -257,6 +289,9 @@
                         $end_time='';
                         $rest_time='';
                         $night_rest_time='';
+                        $work_time='';
+                        $over_time='';
+                        
                     }
                     if($detail['kbn']==4){
                         $selected4='selected';
@@ -264,11 +299,19 @@
                         $end_time=$detail['end_time'];
                         $rest_time=$detail['rest_time'];
                         $night_rest_time=$detail['night_rest_time'];
+                        $work_time=$detail['work_time'];
+                        $over_time=$detail['over_time'];
                     }
                     if($detail['kbn']==5){
                         $selected5='selected';
                         $readonly='readonly';
                         $colorClass='bg-danger-subtle text-danger';
+                        $start_time='';
+                        $end_time='';
+                        $rest_time='';
+                        $night_rest_time='';
+                        $work_time='';
+                        $over_time='';
                     }
                     if($detail['kbn']==6){
                         $selected6='selected';
@@ -278,6 +321,8 @@
                         $end_time='';
                         $rest_time='';
                         $night_rest_time='';
+                        $work_time='';
+                        $over_time='';
                     }
                     if($detail['kbn']==7){
                         $selected7='selected';
@@ -296,6 +341,8 @@
                         $end_time='';
                         $rest_time='';
                         $night_rest_time='';
+                        $work_time='';
+                        $over_time='';
                     }
                     if((int)$detail['kbn']!==1 && (int)$detail['kbn']!==4 && $date==6){
                         $colorClass = 'bg-primary-subtle text-primary';
@@ -304,8 +351,7 @@
                         $colorClass = 'bg-danger-subtle text-danger';
                     }
                     $CalendarElement .= "<tr>";
-                    $CalendarElement .= "<td class='$colorClass'>$w</td>";
-                    $CalendarElement .= "<label><input type='hidden' name='day[]' value={$detail['day']}></label>";
+                    $CalendarElement .= "<td class='$colorClass'>$w<input type='hidden' name='day[]' value={$detail['day']}></td>";
                     $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
                     if ($date === 0 || $date === 6 || $holiday) {
                         $CalendarElement .= "<td class='$colorClass'>
@@ -334,6 +380,16 @@
                         $CalendarElement .= "<td class='$colorClass'>
                                                 <label>
                                                     <input id='dinner' type='time' name='dinner[]' class='form-control' value='{$night_rest_time}' {$readonly} {$disabled}>
+                                                </label>
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='work_time' type='time' name='work_time[]' class='form-control' value='{$work_time}' readonly {$disabled}>
+                                                </label>
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='over_time' type='time' name='over_time[]' class='form-control' value='{$over_time}' readonly {$disabled}>
                                                 </label>
                                             </td>";
                         $CalendarElement .= "<td class='$colorClass'>
@@ -379,6 +435,16 @@
                                                     <input id='dinner' type='time' name='dinner[]' class='form-control' value='{$night_rest_time}' {$readonly} {$disabled}>
                                                 </label>
                                             </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='work_time' type='time' name='work_time[]' class='form-control' value='{$work_time}' readonly {$disabled}>
+                                                </label>
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                <label>
+                                                    <input id='over_time' type='time' name='over_time[]' class='form-control' value='{$over_time}' readonly {$disabled}>
+                                                </label>
+                                            </td>";
 
                         $CalendarElement .= "<td class='$colorClass'>
                                                 <label>
@@ -400,7 +466,7 @@
                 var selectedClass = $(this).find('option:selected').attr('class');
                 let row = $(this).closest("tr");
                 if (selectedClass === "holiday") {
-                    row.find("input").val("");
+                    
                     row.find("input").prop("readonly", true);
                     row.find("td").removeClass();
                     row.find("td").addClass("bg-danger-subtle text-danger");
@@ -409,6 +475,8 @@
                     row.find("#finishWork").val("18:00");
                     row.find("#lunch").val("01:00");
                     row.find("#dinner").val("00:00");
+                    row.find("#work_time").val("08:00");
+                    row.find("#over_time").val("00:00");
                     row.find("input").prop("readonly", false);
                     row.find("td").removeClass();
                 }
@@ -528,8 +596,8 @@
                     $remarks[]=$value;
                 }
                 $work_time=[];
-                $operation=[];
                 $over_time=[];
+                $operation=[];
                 if(empty($attendanceHeads)){
                     try{
                         $table->begin();
@@ -579,7 +647,7 @@
                                 $over_time[$i]='00:00:00';
                             }
                             $table->dbAccess('UPDATE t_attendance_detail
-                            set day=:day,kbn=:kbn,start_time=:start_time,end_time=:end_time,rest_time=:rest_time,night_rest_time=:night_rest_time,work_time=:work_time,over_time=:over_time,remarks=:remarks
+                            set kbn=:kbn,start_time=:start_time,end_time=:end_time,rest_time=:rest_time,night_rest_time=:night_rest_time,work_time=:work_time,over_time=:over_time,remarks=:remarks
                             WHERE head_id=:head_id and day=:day;'
                             ,['day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'remarks'=>$remarks[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'head_id'=>$_SESSION['head_id']]);
                         }
