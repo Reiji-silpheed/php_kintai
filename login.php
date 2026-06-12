@@ -18,16 +18,23 @@
         if($login->loginCheck($_POST['mail-post'],$_POST['password-post'])){
             $_SESSION['mail']=$_POST['mail-post'];
             $rows=$table->select("SELECT * from m_employee WHERE email=:email",['email'=>$_SESSION['mail']]);
-            foreach($rows as $row){
-                $_SESSION['id']=$row['id'];
-            }
             /* 勤怠画面に現在の年月を初期値にするように設定 */
             $firstValue=$firstDate->format('Y-m');
             $yyyy=$firstValue[0];
             $mm=$firstValue[1];
             $yyyymm="{$yyyy}{$mm}";
             $_SESSION['yyyymm']=$yyyymm;
-            header('Location:./kintai.php');
+            foreach($rows as $row){
+                $_SESSION['id']=$row['id'];
+                $_SESSION['authority']=$row['role_cd'];
+                if($_SESSION['authority']==0){
+                    header('Location:./kintai.php');
+                }
+                elseif($_SESSION['authority']==1){
+                    header('Location:./management.php');
+                }
+            }
+            
         }
         else{
             $error->setError('login',"メールアドレスかパスワードが間違っています");

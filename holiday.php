@@ -129,19 +129,22 @@ if(isset($_POST['delModalBtn'])){
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                    <a class="nav-link" aria-current="page" href="kintai.php">勤怠入力</a>
+                        <a class="nav-link" aria-current="page" href="management.php">勤怠管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" aria-current="page" href="kintai.php">勤怠入力</a>
                     </li>
                     <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle active" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        マスタ管理
-                    </a>
+                        <a class="nav-link dropdown-toggle active" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            マスタ管理
+                        </a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="employeeMaster.php">社員マスタ管理</a></li>
                         <li><a class="dropdown-item active" href="holiday.php">祝日マスタ管理</a></li>
                     </ul>
                     </li>
                     <li class="nav-item">
-                    <a class="nav-link" href='login.php'>ログアウト</a>
+                        <a class="nav-link" href='login.php'>ログアウト</a>
                     </li>
                 </ul>
                 </div>

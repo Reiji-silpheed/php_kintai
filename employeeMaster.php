@@ -7,7 +7,7 @@ session_start();
 if(isset($_SESSION['mail'])==""){
     header('Location:./login.php');
 }
-
+$_SESSION['search-authority']='';
 if(isset($_GET['searchBtn'])){
     $_SESSION['search-number']=$_GET['number-search-get'];
     $_SESSION['search-name']=$_GET['name-search-get'];
@@ -219,6 +219,9 @@ if(isset($_POST['delModalBtn'])){
 
                 <div class="collapse navbar-collapse" id="Navber">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a id="input" class="nav-link" aria-current="page" href="management.php">勤怠管理</a>
+                        </li>
                         <li class="nav-item">
                             <a id="input" class="nav-link" aria-current="page" href="kintai.php">勤怠入力</a>
                         </li>

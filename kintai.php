@@ -92,8 +92,9 @@
                 if($date==0 || $holiday){
                     $colorClass = 'bg-danger-subtle text-danger';
                 }
+                $CalendarElement.="<input type='hidden' class='$colorClass' name='day[]' value={$w}>";
                 $CalendarElement .= "<tr>";
-                $CalendarElement .= "<td class='$colorClass'>$w<input type='hidden' class='$colorClass' name='day[]' value={$w}></td>";
+                $CalendarElement .= "<td class='$colorClass'>$w</td>";
                 $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
                 if ($date === 0 || $date === 6 || $holiday) {
                     $CalendarElement .= "<td class='$colorClass'>
@@ -350,8 +351,9 @@
                     if((int)$detail['kbn']!==1 && (int)$detail['kbn']!==4 && ($date==0 || $holiday)){
                         $colorClass = 'bg-danger-subtle text-danger';
                     }
+                    $CalendarElement.="<input type='hidden' name='day[]' value={$detail['day']}>";
                     $CalendarElement .= "<tr>";
-                    $CalendarElement .= "<td class='$colorClass'>$w<input type='hidden' name='day[]' value={$detail['day']}></td>";
+                    $CalendarElement .= "<td class='$colorClass'>$w</td>";
                     $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
                     if ($date === 0 || $date === 6 || $holiday) {
                         $CalendarElement .= "<td class='$colorClass'>
@@ -466,7 +468,7 @@
                 var selectedClass = $(this).find('option:selected').attr('class');
                 let row = $(this).closest("tr");
                 if (selectedClass === "holiday") {
-                    
+                    row.find("input").val('');
                     row.find("input").prop("readonly", true);
                     row.find("td").removeClass();
                     row.find("td").addClass("bg-danger-subtle text-danger");
@@ -504,7 +506,9 @@
 
 <body>
     <!-- メニュー画面 -->
-    <header>
+    <?php
+    if($_SESSION['authority']==0){
+        echo '<header>
         <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom border-body" data-bs-theme="dark">
             <div class="container-fluid">
                 <a class="navbar-brand">勤怠管理システム</a>
@@ -516,6 +520,37 @@
                 <div class="collapse navbar-collapse" id="Navber">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <!-- 今は勤怠入力画面を開いているから勤怠入力にactive -->
+                        <li class="nav-item">
+                            <a id="input" class="nav-link active" aria-current="page" href="#">勤怠入力</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="login.php" id="logout" class="nav-link" aria-disabled="true">ログアウト</a>
+                        </label>
+                            </form>
+                        </li>
+                        
+                    </ul>
+                </div><!-- /.navbar-collapse -->
+            </div><!-- /.container-fluid -->
+        </nav>
+    </header>';
+    }
+    elseif($_SESSION['authority']==1){
+        echo '<header>
+        <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom border-body" data-bs-theme="dark">
+            <div class="container-fluid">
+                <a class="navbar-brand">勤怠管理システム</a>
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#Navber"
+                    aria-controls="Navber" aria-expanded="false" aria-label="ナビゲーションの切替">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="Navber">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <!-- 今は勤怠入力画面を開いているから勤怠入力にactive -->
+                         <li class="nav-item">
+                            <a id="input" class="nav-link active" aria-current="page" href="management.php">勤怠管理</a>
+                        </li>
                         <li class="nav-item">
                             <a id="input" class="nav-link active" aria-current="page" href="#">勤怠入力</a>
                         </li>
@@ -539,7 +574,9 @@
                 </div><!-- /.navbar-collapse -->
             </div><!-- /.container-fluid -->
         </nav>
-    </header>
+    </header>';
+    }
+    ?>
     <!-- 勤怠入力画面 -->
     <main>
         <div class="container">
@@ -549,11 +586,7 @@
                                 FROM t_attendance_head 
                                 WHERE employee_id=:employee_id and yyyymm=:yyyymm'
                                 ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-            if(isset($_POST['displayBtn'])){
-                if($_SESSION['display-month']==''){
-                    echo $error->alert('alert-danger',"年月が選択されていません。");
-                }
-            }
+            
             if(isset($_POST['saveBtn'])){
                 echo $error->alert('alert-primary',"保存が完了しました。");
                 /* 休憩時間を秒に直す関数 */
@@ -637,6 +670,7 @@
                 else{
                     try{
                         $table->begin();
+                        $table->dbAccess('UPDATE t_attendance_head SET status=0 WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
                         for($i=0;$i<$lastDateOfMonth;$i++){
                             $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
                             $operation[]=gmdate('H:i:s',$work_time[$i]);
@@ -744,8 +778,26 @@
                 else{
                     try{
                         $table->begin();
-                        $table->dbAccess('UPDATE t_attendance_head SET status=1 WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                        $table->dbAccess('UPDATE t_attendance_head SET status=1,reject_comment=null WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                        for($i=0;$i<$lastDateOfMonth;$i++){
+                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
+                            $operation[]=gmdate('H:i:s',$work_time[$i]);
+                            if($work_time[$i]>28800){
+                                $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
+                            }
+                            else{
+                                $over_time[$i]='00:00:00';
+                            }
+                            $table->dbAccess('UPDATE t_attendance_detail
+                            set kbn=:kbn,start_time=:start_time,end_time=:end_time,rest_time=:rest_time,night_rest_time=:night_rest_time,work_time=:work_time,over_time=:over_time,remarks=:remarks
+                            WHERE head_id=:head_id and day=:day;'
+                            ,['day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'remarks'=>$remarks[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'head_id'=>$_SESSION['head_id']]);
+                        }
                         $table->commit();
+                    }
+                    catch(Exception $ex){
+                        $table->rollback();
+                        exit();
                     }
                     catch(Exception $ex){
                         $table->rollback();
@@ -760,8 +812,71 @@
                 
             }
             ?>
+            <div class="container">
+                <div class="card mt-4">
+                    <div class="card-header">
+                        差戻一覧
+                    </div>
+                    <form method="POST">
+                    <div class="card-body">
+                        <div class="container">
+                            <table class="table mt-2">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th scope="col">日付</th>
+                                        <th scope="col">理由</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php 
+                                    $page=1;
+                                    if(isset($_GET['page'])){
+                                        if(is_numeric($_GET['page'])){
+                                            $page=(int)$_GET['page'];
+                                        }
+                                    }
+                                    else{
+                                        $page=1;
+                                    }
+                                    $offset=5*($page-1);
+                                    #urlを作ることでページネイションのボタンを押したときに検索されたものが表示されるようにしている。
+                                    $rows=$table->select("SELECT * FROM t_attendance_head WHERE employee_id=:employee_id and reject_comment is not null ORDER BY id LIMIT 5 OFFSET $offset",['employee_id'=>$_SESSION['id']]);
+                                    $lengths=$table->select("SELECT count(id) FROM t_attendance_head WHERE employee_id=:employee_id and NOT reject_comment=null",['employee_id'=>$_SESSION['id']]);
+                                    ?>
+                                    
+                                    <?php foreach($rows as $row):?>
+                                        <tr>
+                                            <td><?php echo $row['yyyymm'];?></td>
+                                            <td><?php echo $row['reject_comment'];?></td>
+                                        </tr>   
+                                    <?php endforeach?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- ページネイション -->
+                        <nav class="d-flex align-items-center justify-content-center">
+                            <ul class="pagination">
+                                <li class="page-item <?php if($page==1){echo 'disabled';}?>">
+                                    <a class="page-link" href="?page=<?php echo $page-1; ?>">前</a>
+                                </li>
+                                <?php foreach($lengths as $length):?>
+                                    <?php for ($i=1;$i<=ceil($length['count(id)']/5);$i++):?>
+                                    <li class="page-item <?php if($page==$i){echo 'active';}?>">
+                                        <a class="page-link" href="?page=<?php echo $i;?>"><?php echo $i;?></a>
+                                    </li>
+                                    <?php endfor?>
+                                    <li class="page-item <?php if($page==ceil($length['count(id)']/5)){echo 'disabled';}?>" >
+                                        <a class="page-link" href="?page=<?php echo $page+1;?>">次</a>
+                                    </li>
+                                <?php endforeach?>
+                                
+                            </ul>
+                        </nav>
+                    </div>
+                    </form>
+                </div>
             <form method="POST">
-                <div id="dateCard" class="card">
+                <div id="dateCard" class="card mt-4">
                     <div class="card-header">
                         入力
                     </div>
