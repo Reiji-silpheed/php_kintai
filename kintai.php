@@ -549,7 +549,7 @@
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <!-- 今は勤怠入力画面を開いているから勤怠入力にactive -->
                          <li class="nav-item">
-                            <a id="input" class="nav-link active" aria-current="page" href="management.php">勤怠管理</a>
+                            <a id="input" class="nav-link" aria-current="page" href="management.php">勤怠管理</a>
                         </li>
                         <li class="nav-item">
                             <a id="input" class="nav-link active" aria-current="page" href="#">勤怠入力</a>
@@ -876,7 +876,7 @@
                     </form>
                 </div>
             <form method="POST">
-                <div id="dateCard" class="card mt-4">
+                <div id="dateCard" class="card mt-2">
                     <div class="card-header">
                         入力
                     </div>

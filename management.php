@@ -7,6 +7,11 @@
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
     <title>勤怠管理</title>
+    <script>
+        $(function(){
+        
+        })
+    </script>
 </head>
 <?php
 require_once './loginClass.php';
@@ -62,11 +67,14 @@ $date=new DateTime();
         $select1='';
         $select2='';
         $select3='';
-        $sql="SELECT * FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
-        $list=[];
+        $sql="SELECT *,t_attendance_head.id AS head_id FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
         $where='';
+        $url='?';
+        $list=[];
         $param=[];
     if(isset($_GET['searchBtn'])){
+        $list=[];
+        $param=[];
         $_SESSION['searchDate']=$_GET['searchDate'];
         if($_GET['searchDate']!==''){
             $firstParts=explode("-",$_GET['searchDate']);
@@ -74,16 +82,19 @@ $date=new DateTime();
             $mm=$firstParts[1];
             $yyyymm="{$yyyy}{$mm}";
         }
+        $url.="searchDate={$_GET['searchDate']}";
         $_SESSION['searchNumber']=$_GET['searchNumber'];
         $_SESSION['searchName']=$_GET['searchName'];
         if(!empty($_GET['searchDate'])){
             $list[]='yyyymm=:yyyymm';
             $param['yyyymm']=$yyyymm;
         }
+        $url.="&searchNumber={$_GET['searchNumber']}";
         if(!empty($_GET['searchNumber'])){
             $list[]='employee_no=:employee_no';
             $param['employee_no']=$_GET['searchNumber'];
         }
+        $url.="&searchName={$_GET['searchName']}";
         if(!empty($_GET['searchName'])){
             $list[]='employee_name=:employee_name';
             $param['employee_name']=$_GET['searchName'];
@@ -92,6 +103,9 @@ $date=new DateTime();
             $list[]='status=:status';
             $param['status']=$_GET['searchStatus'];
         }
+        $url.="&searchStatus={$_GET['searchStatus']}";
+        $url.="&searchBtn=検索";
+        $_SESSION['url']=$url;
         if($_GET['searchStatus']==0){
             $select0='selected';
         }
@@ -111,11 +125,12 @@ $date=new DateTime();
         $rows=$table->select($sql,$param);
     }
     if(isset($_GET['cBtn'])){
-        $select='';
+        $select='?';
         $_SESSION['searchDate']='';
         $_SESSION['searchNumber']='';
         $_SESSION['searchName']='';
         $_SESSION['searchStatus']='';
+        $_SESSION['url']=$url;
     }
     ?>
     <main>
@@ -169,6 +184,267 @@ $date=new DateTime();
                     </div>
                 </form>
             </div>
+            <div class="card mt-2">
+                <div class="card-header">
+                    検索結果
+                </div>
+                <div class="card-body">
+                    <div class="container">
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <!-- それぞれのボタンを押したときにモーダルが出るようにした -->
+                            <button type="button" class="btn btn-success" id="newApproval" data-bs-toggle="modal"
+                                data-bs-target="#approvalModal">承認</button>
+                            <button type="button" class="btn btn-danger" id="backBtn" data-bs-toggle="modal"
+                                data-bs-target="#backModal">差戻</button>
+                            <button type="button" class="btn btn-light" id="excelBtn" data-bs-toggle="modal"
+                                data-bs-target="#excelModal">Excel出力</button>
+                            <button type="button" class="btn btn-light" id="PDFBtn" data-bs-toggle="modal"
+                                data-bs-target="#PDFModal">PDF出力</button>
+                        </div>
+                    </div>
+                    <div class="container">
+                        <table class="table mt-2">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">年月</th>
+                                    <th scope="col">社員番号</th>
+                                    <th scope="col">社員名</th>
+                                    <th scope="col">ステータス</th>
+                                    <th scope="col">確認</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $page=1;
+                                if(isset($_GET['page'])){
+                                    if(is_numeric($_GET['page'])){
+                                        $page=(int)$_GET['page'];
+                                    }
+                                }
+                                else{
+                                    $page=1;
+                                }
+                                $offset=5*($page-1);
+                                $url='';
+                                $count="SELECT count(m_employee.id) FROM t_attendance_head left join m_employee on m_employee.id=t_attendance_head.employee_id";
+                                $sql.=" ORDER BY m_employee.id limit 5 offset {$offset}";
+                                if(!empty($rows)){
+                                    $count.= " WHERE {$where}";
+                                }
+                                $rows=$table->select($sql,$param);
+                                $countRows=$table->select($count,$param);
+                                ?>
+                                <?php foreach($rows as $row):?>
+                                    <tr>
+                                        <input type="hidden" class="head_id" value="<?php echo $row['head_id'];?>">
+                                        <td scope="row">
+                                            <div class="form-check">
+                                                <label for="checkbox">
+                                                    <input class="form-check-input" type="checkbox" name="checkbox" id="<?php echo $row['head_id'];?>" value='<?php echo $row['head_id'];?>'/>
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td class="date"><?php echo $row['yyyymm'];?></td>
+                                        <td class="number"><?php echo $row['employee_no'];?></td>
+                                        <td class="name"><?php echo $row['employee_name'];?></td>
+                                        <td class="status"><?php if($row['status']==0){echo "入力中";}elseif($row['status']==1){echo "申請中";}elseif($row['status']==2){echo "差戻中";}elseif($row['status']==3){echo "承認済み";}?></td>
+                                        <td>
+                                            <a class="btn btn-info" href="management.php?head_id=<?php echo $row['head_id']; ?>">確認</a>
+                                        </td>
+                                    </tr>   
+                                <?php endforeach?>
+                            </tbody>
+                        </table>    
+                    </div>
+                </div>
+                <nav class="d-flex align-items-center justify-content-center">
+                    <ul class="pagination">
+                        <li class="page-item <?php if($page==1){echo 'disabled';}?>">
+                            <a class="page-link" href="<?php echo $_SESSION['url'];?>&page=<?php echo $page-1;?>">前</a>
+                        </li>
+                        <?php foreach($countRows as $countRow):?>
+                            <?php for($i=1;$i<=ceil($countRow['count(m_employee.id)']/5);$i++):?>
+                                <li class="page-item <?php if($page==$i){echo 'active';}?>">
+                                    <a class="page-link" href="<?php echo $_SESSION['url'];?>&page=<?php echo $i?>"><?php echo $i;?></a>
+                                </li>
+                            <?php endfor?>
+                            <li class="page-item <?php if($page==ceil($countRow['count(m_employee.id)']/5)){echo 'disabled';}?>">
+                                <a class="page-link" href="<?php echo $_SESSION['url'];?>&page=<?php echo $page+1?>">次</a>
+                            </li>
+                        <?php endforeach?>
+                    </ul>
+                </nav>
+            </div>
         </div>
     </main>
 </body>
+<?php if(isset($_GET['head_id'])):?>
+    <script>
+        $(function(){
+            $("#checkModal").modal("show");
+        });
+    </script>          
+<?php endif?>
+<div class="modal fade" id="checkModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h1 class="modal-title text-light fs-5">勤怠確認</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+            </div>
+            <div class="modal-body">
+                <?php
+                $attendanceDetails=$table->select('SELECT * FROM t_attendance_detail WHERE head_id=:head_id',['head_id'=>$_GET['head_id']]);
+                $attendanceHeads=$table->select('SELECT * FROM t_attendance_head WHERE id=:id',['id'=>$_GET['head_id']]);
+                $weeks=['日','月','火','水','木','金','土'];
+                foreach($attendanceHeads as $attendanceHead){
+                    $date = DateTime::createFromFormat('Ym', $attendanceHead['yyyymm']);
+                    $yyyy_mm=$date->format('Y-m');
+                }
+                $weeks=['日','月','火','水','木','金','土'];
+                $lastDateOfMonth=date('d',strtotime('last day of '.$yyyy_mm));
+                $firstWeekDay=date('w',strtotime($yyyy_mm.'-01'));
+                $CalendarElement=
+                    "<table class='table mt-2'>
+                        <thead class='table-dark'>
+                            <tr>
+                                <th>日</th>
+                                <th>曜日</th>
+                                <th>区分</th>
+                                <th>開始時間</th>
+                                <th>終了時間</th>
+                                <th>昼休憩時間</th>
+                                <th>夜休憩時間</th>
+                                <th>勤務時間</th>
+                                <th>残業時間</th>
+                                <th>備考</th>
+                            </tr>
+                        </thead>";
+                $CalendarElement .= "<tbody>";
+                $holidays=$table->select('SELECT * FROM m_holiday',[]);
+                foreach($attendanceDetails as $detail){
+                    $start_time='';
+                    $end_time='';
+                    $rest_time='';
+                    $night_rest_time='';
+                    $work_time='';
+                    $over_time='';
+                    $remarks='';
+                    $kbn='';
+                    $holiday=false;
+                    $holidayValue='';
+                    $day='0'.$detail['day'];
+                    $colorClass="";
+                    $date=($firstWeekDay+$detail['day']-1)%7;
+                    $dd=substr($day,-2);
+                    $fullDate="{$yyyy_mm}-{$dd}";
+                    foreach($holidays as $holidayRow){
+                        if($fullDate==$holidayRow['yyyymmdd']){
+                            $holiday=true;
+                            $holidayValue=$holidayRow['holiday_name'];
+                        }
+                    }
+                    $remarks=$detail['remarks'];
+                    if($detail['kbn']==1){
+                        $kbn='出勤';
+                        $start=new DateTime("{$detail['start_time']}");
+                        $start_time=$start->format("H:i");
+                        $end=new DateTime("{$detail['end_time']}");
+                        $end_time=$end->format("H:i");
+                        $rest=new DateTime("{$detail['rest_time']}");
+                        $rest_time=$rest->format("H:i");
+                        $night_rest=new DateTime("{$detail['night_rest_time']}");
+                        $night_rest_time=$night_rest->format("H:i");
+                        $work=new DateTime("{$detail['work_time']}");
+                        $work_time=$work->format("H:i");
+                        $over=new DateTime("{$detail['over_time']}");
+                        $over_time=$over->format("H:i");
+                    }
+                    if($detail['kbn']==2){
+                        $kbn='休日';
+                        $colorClass='bg-danger-subtle text-danger';
+                    }
+                    if($detail['kbn']==3){
+                        $kbn='有給';
+                        $colorClass='bg-danger-subtle text-danger';
+
+                    }
+                    if($detail['kbn']==4){
+                        $kbn='休出';
+                        $start=new DateTime("{$detail['start_time']}");
+                        $start_time=$start->format("H:i");
+                        $end=new DateTime("{$detail['end_time']}");
+                        $end_time=$end->format("H:i");
+                        $rest=new DateTime("{$detail['rest_time']}");
+                        $rest_time=$rest->format("H:i");
+                        $night_rest=new DateTime("{$detail['night_rest_time']}");
+                        $night_rest_time=$night_rest->format("H:i");
+                        $work=new DateTime("{$detail['work_time']}");
+                        $work_time=$work->format("H:i");
+                        $over=new DateTime("{$detail['over_time']}");
+                        $over_time=$over->format("H:i");
+                    }
+                    if($detail['kbn']==5){
+                        $kbn='欠勤';
+                        $colorClass='bg-danger-subtle text-danger';
+                    }
+                    if($detail['kbn']==6){
+                        $kbn='特休';
+                        $colorClass='bg-danger-subtle text-danger';
+                    }
+                    if($detail['kbn']==7){
+                        $kbn='代休';
+                        $colorClass='bg-danger-subtle text-danger';
+                    }
+                    if($detail['kbn']==8){
+                        $kbn='振休';
+                        $colorClass='bg-danger-subtle text-danger';
+                    }
+                    if((int)$detail['kbn']!==1 && (int)$detail['kbn']!==4 && $date==6){
+                        $colorClass = 'bg-primary-subtle text-primary';
+                    }
+                    if((int)$detail['kbn']!==1 && (int)$detail['kbn']!==4 && ($date==0 || $holiday)){
+                        $colorClass = 'bg-danger-subtle text-danger';
+                    }
+                    $CalendarElement.="<input type='hidden' name='day[]' value={$detail['day']}>";
+                    $CalendarElement .= "<tr>";
+                    $CalendarElement .= "<td class='$colorClass'>{$detail['day']}</td>";
+                    $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                {$kbn}
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                {$start_time}
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                {$end_time}
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                {$rest_time}
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                {$night_rest_time}
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                                {$work_time}
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass'>
+                                               {$over_time}
+                                            </td>";
+                        $CalendarElement .= "<td class='$colorClass text-body'>
+                                                {$remarks}
+                                            </td>";
+                    $CalendarElement .= "</tr>";
+                }
+                $CalendarElement .= "</tbody></table>";
+                echo $CalendarElement;              
+
+                ?>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div><!-- /.modal-footer -->
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
