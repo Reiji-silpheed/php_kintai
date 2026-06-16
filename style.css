@@ -11,20 +11,29 @@ td:nth-child(2) {
 
 th:nth-child(3),
 td:nth-child(3) {
-    width: 100px;
+    width: 110px;
 }
 
 th:nth-child(4),
-th:nth-child(5),
-th:nth-child(6),
-th:nth-child(7),
 td:nth-child(4),
+th:nth-child(5),
 td:nth-child(5),
+th:nth-child(6),
 td:nth-child(6),
-td:nth-child(7) {
-    width: 70px;
+th:nth-child(7),
+td:nth-child(7),
+th:nth-child(8),
+td:nth-child(8),
+th:nth-child(9),
+td:nth-child(9){
+    width: 80px;
 }
 
-td:nth-child(8) input{
-    width: 600px;
+td:nth-child(10) input{
+    width: 340px;
+}
+
+/* リサイズ機能を無効化 */
+textarea {
+    resize: none;       
 }

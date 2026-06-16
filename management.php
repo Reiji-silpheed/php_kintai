@@ -6,10 +6,19 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="./style2.css">
     <title>勤怠管理</title>
     <script>
         $(function(){
-        
+            $(document).on("click","#approvalBtn",function(){
+                const checks=[];
+                $(':checkbox[name="checkbox"]:checked').each(function(){
+                   checks.push($(this).val());
+                })
+                var status=checks.join(",");
+                $(".check").val(status);
+                console.log(checks);
+            }) 
         })
     </script>
 </head>
@@ -23,6 +32,10 @@ $login=new dbClass();
 $error=new Message();
 $table=new dbClass();
 $date=new DateTime();
+$judgment=false;
+if($_SESSION['mail']==''){
+    header('Location:./login.php');
+}
 ?>
 <body>
     <header>
@@ -62,19 +75,17 @@ $date=new DateTime();
         </nav>
     </header>
     <?php
-        $select='';
-        $select0='';
-        $select1='';
-        $select2='';
-        $select3='';
-        $sql="SELECT *,t_attendance_head.id AS head_id FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
-        $where='';
-        $url='?';
-        $list=[];
-        $param=[];
+    $select='';
+    $select0='';
+    $select1='';
+    $select2='';
+    $select3='';
+    $sql="SELECT *,t_attendance_head.id AS head_id FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
+    $where='';
+    $url='?';
+    $list=[];
+    $param=[];
     if(isset($_GET['searchBtn'])){
-        $list=[];
-        $param=[];
         $_SESSION['searchDate']=$_GET['searchDate'];
         if($_GET['searchDate']!==''){
             $firstParts=explode("-",$_GET['searchDate']);
@@ -125,7 +136,7 @@ $date=new DateTime();
         $rows=$table->select($sql,$param);
     }
     if(isset($_GET['cBtn'])){
-        $select='?';
+        $select='';
         $_SESSION['searchDate']='';
         $_SESSION['searchNumber']='';
         $_SESSION['searchName']='';
@@ -142,6 +153,24 @@ $date=new DateTime();
                     echo $error->alert('alert-warning','検索結果がありませんでした');
                 }
             }
+            if(isset($_POST['approvalModalBtn'])){
+                if(empty($_POST['check'])){
+                    echo $error->alert('alert-danger','勤怠を選択してください');
+                }
+                $values=explode(",",$_POST['check']);
+                foreach($values as $value){
+                    $statusChecks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
+                    foreach($statusChecks as $statusCheck){
+                        if((int)$statusCheck['status']!==1){
+                            $judgment=true;
+                        }
+                    }
+                }
+            }
+            if($judgment){
+                echo $error->alert('alert-primary','「申請中」以外が含まれています');
+            }
+            
             ?>
             <div class="card">
                 <div class="card-header">
@@ -191,8 +220,7 @@ $date=new DateTime();
                 <div class="card-body">
                     <div class="container">
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <!-- それぞれのボタンを押したときにモーダルが出るようにした -->
-                            <button type="button" class="btn btn-success" id="newApproval" data-bs-toggle="modal"
+                            <button type="button" class="btn btn-success" id="approvalBtn" data-bs-toggle="modal"
                                 data-bs-target="#approvalModal">承認</button>
                             <button type="button" class="btn btn-danger" id="backBtn" data-bs-toggle="modal"
                                 data-bs-target="#backModal">差戻</button>
@@ -229,7 +257,7 @@ $date=new DateTime();
                                 $url='';
                                 $count="SELECT count(m_employee.id) FROM t_attendance_head left join m_employee on m_employee.id=t_attendance_head.employee_id";
                                 $sql.=" ORDER BY m_employee.id limit 5 offset {$offset}";
-                                if(!empty($rows)){
+                                if(!empty($where)){
                                     $count.= " WHERE {$where}";
                                 }
                                 $rows=$table->select($sql,$param);
@@ -250,7 +278,8 @@ $date=new DateTime();
                                         <td class="name"><?php echo $row['employee_name'];?></td>
                                         <td class="status"><?php if($row['status']==0){echo "入力中";}elseif($row['status']==1){echo "申請中";}elseif($row['status']==2){echo "差戻中";}elseif($row['status']==3){echo "承認済み";}?></td>
                                         <td>
-                                            <a class="btn btn-info" href="management.php?head_id=<?php echo $row['head_id']; ?>">確認</a>
+                                            <!-- head_idを取得するためにurlで送信している -->
+                                            <a class="btn btn-info" href="<?php echo $_SESSION['url'];?>&page=<?php echo $page;?>&head_id=<?php echo $row['head_id']; ?>">確認</a>
                                         </td>
                                     </tr>   
                                 <?php endforeach?>
@@ -279,6 +308,7 @@ $date=new DateTime();
         </div>
     </main>
 </body>
+
 <?php if(isset($_GET['head_id'])):?>
     <script>
         $(function(){
@@ -309,16 +339,16 @@ $date=new DateTime();
                     "<table class='table mt-2'>
                         <thead class='table-dark'>
                             <tr>
-                                <th>日</th>
-                                <th>曜日</th>
-                                <th>区分</th>
-                                <th>開始時間</th>
-                                <th>終了時間</th>
-                                <th>昼休憩時間</th>
-                                <th>夜休憩時間</th>
-                                <th>勤務時間</th>
-                                <th>残業時間</th>
-                                <th>備考</th>
+                                <th class='text-center align-middle'>日</th>
+                                <th class='text-center align-middle'>曜日</th>
+                                <th class='text-center align-middle'>区分</th>
+                                <th class='text-center align-middle'>開始時間</th>
+                                <th class='text-center align-middle'>終了時間</th>
+                                <th class='text-center align-middle'>昼休憩時間</th>
+                                <th class='text-center align-middle'>夜休憩時間</th>
+                                <th class='text-center align-middle'>勤務時間</th>
+                                <th class='text-center align-middle'>残業時間</th>
+                                <th class='text-center align-middle'>備考</th>
                             </tr>
                         </thead>";
                 $CalendarElement .= "<tbody>";
@@ -348,6 +378,7 @@ $date=new DateTime();
                     $remarks=$detail['remarks'];
                     if($detail['kbn']==1){
                         $kbn='出勤';
+                        /* H:i:sをH:iに変更 */
                         $start=new DateTime("{$detail['start_time']}");
                         $start_time=$start->format("H:i");
                         $end=new DateTime("{$detail['end_time']}");
@@ -409,30 +440,30 @@ $date=new DateTime();
                     }
                     $CalendarElement.="<input type='hidden' name='day[]' value={$detail['day']}>";
                     $CalendarElement .= "<tr>";
-                    $CalendarElement .= "<td class='$colorClass'>{$detail['day']}</td>";
-                    $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
-                        $CalendarElement .= "<td class='$colorClass'>
+                    $CalendarElement .= "<td class='$colorClass text-center align-middle'>{$detail['day']}</td>";
+                    $CalendarElement .= "<td class='$colorClass text-center align-middle'>$weeks[$date]</td>";
+                        $CalendarElement .= "<td class='$colorClass text-center align-middle'>
                                                 {$kbn}
                                             </td>";
-                        $CalendarElement .= "<td class='$colorClass'>
+                        $CalendarElement .= "<td class='$colorClass text-center align-middle'>
                                                 {$start_time}
                                             </td>";
-                        $CalendarElement .= "<td class='$colorClass'>
+                        $CalendarElement .= "<td class='$colorClass text-center align-middle'>
                                                 {$end_time}
                                             </td>";
-                        $CalendarElement .= "<td class='$colorClass'>
+                        $CalendarElement .= "<td class='$colorClass text-center align-middle'>
                                                 {$rest_time}
                                             </td>";
-                        $CalendarElement .= "<td class='$colorClass'>
+                        $CalendarElement .= "<td class='$colorClass text-center align-middle'>
                                                 {$night_rest_time}
                                             </td>";
-                        $CalendarElement .= "<td class='$colorClass'>
+                        $CalendarElement .= "<td class='$colorClass text-center align-middle'>
                                                 {$work_time}
                                             </td>";
-                        $CalendarElement .= "<td class='$colorClass'>
+                        $CalendarElement .= "<td class='$colorClass text-center align-middle'>
                                                {$over_time}
                                             </td>";
-                        $CalendarElement .= "<td class='$colorClass text-body'>
+                        $CalendarElement .= "<td class='$colorClass text-body align-middle'>
                                                 {$remarks}
                                             </td>";
                     $CalendarElement .= "</tr>";
@@ -447,4 +478,31 @@ $date=new DateTime();
             </div><!-- /.modal-footer -->
         </div><!-- /.modal-content -->
     </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+
+<?php
+if(isset($_POST['approvalModalBtn'])){
+    
+}
+?>
+<div class="modal fade" id="approvalModal" tabindex="-1" aria-labelledby="exampleModalLabel">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-info">
+        <h1 class="modal-title fs-5 text-light" id="exampleModalLabel">承認</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+      </div>
+      <div class="modal-body">
+        <p>選択した勤怠の承認を行いますか?</p>
+      </div>
+      <div class="modal-footer">
+        <form method="POST" action="management.php<?php echo $_SESSION['url'];?>">
+            <input type="hidden" id="check" class="check" name="check" value="">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+            <input type="submit" name="approvalModalBtn" class="btn btn-success" value="承認">
+        </form>
+      </div><!-- /.modal-footer -->
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->

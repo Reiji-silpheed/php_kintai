@@ -6,7 +6,7 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <link rel="stylesheet" href="/php_kintai/style.css">
+    <link rel="stylesheet" href="./style.css">
     <title>勤怠管理</title>
     
     <?php
@@ -57,16 +57,16 @@
             "<table class='table mt-2'>
                 <thead class='table-dark'>
                     <tr>
-                        <th>日</th>
-                        <th>曜日</th>
-                        <th>区分</th>
-                        <th>開始時間</th>
-                        <th>終了時間</th>
-                        <th>昼休憩時間</th>
-                        <th>夜休憩時間</th>
-                        <th>勤務時間</th>
-                        <th>残業時間</th>
-                        <th>備考</th>
+                        <th class='text-start'>日</th>
+                        <th class='text-start'>曜日</th>
+                        <th class='text-start'>区分</th>
+                        <th class='text-start'>開始時間</th>
+                        <th class='text-start'>終了時間</th>
+                        <th class='text-start'>昼休憩時間</th>
+                        <th class='text-start'>夜休憩時間</th>
+                        <th class='text-start'>勤務時間</th>
+                        <th class='text-start'>残業時間</th>
+                        <th class='text-start'>備考</th>
                     </tr>
                 </thead>";
             $CalendarElement .= "<tbody>";
@@ -86,6 +86,8 @@
                         $holidayValue=$holidayRow['holiday_name'];
                     }
                 }
+                /* テキストボックスの行数を計算 */
+                $len=floor(mb_strlen($holidayValue)/20)+1;
                 if($date==6){
                     $colorClass = 'bg-primary-subtle text-primary';
                 }
@@ -94,7 +96,7 @@
                 }
                 $CalendarElement.="<input type='hidden' class='$colorClass' name='day[]' value={$w}>";
                 $CalendarElement .= "<tr>";
-                $CalendarElement .= "<td class='$colorClass'>$w</td>";
+                $CalendarElement .= "<td class='$colorClass' scope='row'>$w</td>";
                 $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
                 if ($date === 0 || $date === 6 || $holiday) {
                     $CalendarElement .= "<td class='$colorClass'>
@@ -136,9 +138,7 @@
                                             </label>
                                         </td>";
                     $CalendarElement .= "<td class='$colorClass'>
-                                            <label>
-                                                <input type='text' name='text[]' class='form-control' value='$holidayValue' readonly>
-                                            </label>
+                                            <textarea name='text[]' class='form-control' rows={$len}>$holidayValue</textarea>
                                         </td>";
                 }
                 
@@ -192,9 +192,7 @@
                                         </td>";
 
                     $CalendarElement .= "<td class='$colorClass'>
-                                            <label>
-                                                <input type='text' name='text[]' class='form-control' value='$holidayValue'>
-                                            </label>
+                                            <textarea name='text[]' class='form-control' rows={$len}>$holidayValue</textarea>
                                         </td>";
                 }
                 $CalendarElement .= "</tr>";
@@ -213,17 +211,16 @@
             "<table class='table mt-2'>
                 <thead class='table-dark'>
                     <tr>
-                        <th>日</th>
-                        <th>曜日</th>
-                        <th>区分</th>
-                        <th>開始時間</th>
-                        <th>終了時間</th>
-                        <th>昼休憩時間</th>
-                        <th>夜休憩時間</th>
-                        <th>勤務時間</th>
-                        <th>残業時間</th>
-                        <th>備考</th>
-                    </tr>
+                        <th class='text-start'>日</th>
+                        <th class='text-start'>曜日</th>
+                        <th class='text-start'>区分</th>
+                        <th class='text-start'>開始時間</th>
+                        <th class='text-start'>終了時間</th>
+                        <th class='text-start'>昼休憩時間</th>
+                        <th class='text-start'>夜休憩時間</th>
+                        <th class='text-start'>勤務時間</th>
+                        <th class='text-start'>残業時間</th>
+                        <th class='text-start'>備考</th>
                 </thead>";
 
             $CalendarElement .= "<tbody>";
@@ -236,6 +233,7 @@
                 $new_work_time='';
                 $over_time='';
                 $new_over_time='';
+                $remarks='';
                 $selected1='';
                 $selected2='';
                 $selected3='';
@@ -255,6 +253,8 @@
                     $yyyy=$firstParts[0];
                     $mm=$firstParts[1];
                     $dd=substr($day,-2);
+                    $remarks=$detail['remarks'];
+                    $len=floor(mb_strlen($remarks)/20)+1;
                     $fullDate="{$yyyy}-{$mm}-{$dd}";
                     foreach($holidays as $holidayRow){
                         if($fullDate==$holidayRow['yyyymmdd']){
@@ -353,7 +353,7 @@
                     }
                     $CalendarElement.="<input type='hidden' name='day[]' value={$detail['day']}>";
                     $CalendarElement .= "<tr>";
-                    $CalendarElement .= "<td class='$colorClass'>$w</td>";
+                    $CalendarElement .= "<td class='$colorClass' scope='row'>$w</td>";
                     $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
                     if ($date === 0 || $date === 6 || $holiday) {
                         $CalendarElement .= "<td class='$colorClass'>
@@ -395,9 +395,7 @@
                                                 </label>
                                             </td>";
                         $CalendarElement .= "<td class='$colorClass'>
-                                                <label>
-                                                    <input type='text' name='text[]' class='form-control' value='{$holidayValue}'{$disabled}>
-                                                </label>
+                                                <textarea name='text[]' class='form-control' rows={$len} {$disabled}>$remarks</textarea>
                                             </td>";
                     }
                     else {
@@ -449,9 +447,7 @@
                                             </td>";
 
                         $CalendarElement .= "<td class='$colorClass'>
-                                                <label>
-                                                    <input type='text' name='text[]' class='form-control' value='{$holidayValue}' {$disabled}>
-                                                </label>
+                                                <textarea name='text[]' class='form-control' rows={$len} {$disabled}>$remarks</textarea>
                                             </td>";
                     }
                     $CalendarElement .= "</tr>";
@@ -468,8 +464,18 @@
                 var selectedClass = $(this).find('option:selected').attr('class');
                 let row = $(this).closest("tr");
                 if (selectedClass === "holiday") {
-                    row.find("input").val('');
-                    row.find("input").prop("readonly", true);
+                    row.find("#startWork").val('');
+                    row.find("#finishWork").val('');
+                    row.find("#lunch").val('');
+                    row.find("#dinner").val('');
+                    row.find("#work_time").val("");
+                    row.find("#over_time").val("");
+                    row.find("#startWork").prop("readonly", true);
+                    row.find("#finishWork").prop("readonly", true);
+                    row.find("#lunch").prop("readonly", true);
+                    row.find("#dinner").prop("readonly", true);
+                    row.find("#work_time").prop("readonly", true);
+                    row.find("#over_time").prop("readonly", true);
                     row.find("td").removeClass();
                     row.find("td").addClass("bg-danger-subtle text-danger");
                 } else {
@@ -479,7 +485,12 @@
                     row.find("#dinner").val("00:00");
                     row.find("#work_time").val("08:00");
                     row.find("#over_time").val("00:00");
-                    row.find("input").prop("readonly", false);
+                    row.find("#startWork").prop("readonly", false);
+                    row.find("#finishWork").prop("readonly", false);
+                    row.find("#lunch").prop("readonly", false);
+                    row.find("#dinner").prop("readonly", false);
+                    row.find("#work_time").prop("readonly", false);
+                    row.find("#over_time").prop("readonly", false);
                     row.find("td").removeClass();
                 }
             })
@@ -812,8 +823,11 @@
                 
             }
             ?>
+            <?php
+            $rows=$table->select("SELECT * FROM t_attendance_head WHERE employee_id=:employee_id and reject_comment is not null",["employee_id"=>$_SESSION['id']]);
+            ?>
             <div class="container">
-                <div class="card mt-4">
+                <div class="card mt-4" <?php if(empty($rows)){echo 'hidden';}?>>
                     <div class="card-header">
                         差戻一覧
                     </div>
@@ -853,28 +867,10 @@
                                 </tbody>
                             </table>
                         </div>
-                        <!-- ページネイション -->
-                        <nav class="d-flex align-items-center justify-content-center">
-                            <ul class="pagination">
-                                <li class="page-item <?php if($page==1){echo 'disabled';}?>">
-                                    <a class="page-link" href="?page=<?php echo $page-1; ?>">前</a>
-                                </li>
-                                <?php foreach($lengths as $length):?>
-                                    <?php for ($i=1;$i<=ceil($length['count(id)']/5);$i++):?>
-                                    <li class="page-item <?php if($page==$i){echo 'active';}?>">
-                                        <a class="page-link" href="?page=<?php echo $i;?>"><?php echo $i;?></a>
-                                    </li>
-                                    <?php endfor?>
-                                    <li class="page-item <?php if($page==ceil($length['count(id)']/5)){echo 'disabled';}?>" >
-                                        <a class="page-link" href="?page=<?php echo $page+1;?>">次</a>
-                                    </li>
-                                <?php endforeach?>
-                                
-                            </ul>
-                        </nav>
                     </div>
-                    </form>
-                </div>
+                </form>
+            </div>
+
             <form method="POST">
                 <div id="dateCard" class="card mt-2">
                     <div class="card-header">
