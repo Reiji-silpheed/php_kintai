@@ -11,13 +11,19 @@
     <script>
         $(function(){
             $(document).on("click","#approvalBtn",function(){
+                $(".alert").remove();
                 const checks=[];
                 $(':checkbox[name="checkbox"]:checked').each(function(){
                    checks.push($(this).val());
                 })
+                if(checks.length===0){
+                    $("#title").after('<div class="alert alert-danger" role="alert">勤怠を選択してください</div>');
+                }
+                else{
+                    $("#approvalModal").modal("show");                       
+                }
                 var status=checks.join(",");
                 $(".check").val(status);
-                console.log(checks);
             }) 
         })
     </script>
@@ -32,7 +38,6 @@ $login=new dbClass();
 $error=new Message();
 $table=new dbClass();
 $date=new DateTime();
-$judgment=false;
 if($_SESSION['mail']==''){
     header('Location:./login.php');
 }
@@ -83,6 +88,7 @@ if($_SESSION['mail']==''){
     $sql="SELECT *,t_attendance_head.id AS head_id FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
     $where='';
     $url='?';
+    $_SESSION['management_url']=$url;
     $list=[];
     $param=[];
     if(isset($_GET['searchBtn'])){
@@ -116,7 +122,7 @@ if($_SESSION['mail']==''){
         }
         $url.="&searchStatus={$_GET['searchStatus']}";
         $url.="&searchBtn=検索";
-        $_SESSION['url']=$url;
+        $_SESSION['management_url']=$url;
         if($_GET['searchStatus']==0){
             $select0='selected';
         }
@@ -141,35 +147,56 @@ if($_SESSION['mail']==''){
         $_SESSION['searchNumber']='';
         $_SESSION['searchName']='';
         $_SESSION['searchStatus']='';
-        $_SESSION['url']=$url;
+        $_SESSION['management_url']=$url;
     }
     ?>
     <main>
         <div class="container">
-            <h1>勤怠管理</h1>
+            <h1 id="title">勤怠管理</h1>
             <?php
+            $judgment=false;
+            $tabooLists=[];
+            $values=[];
             if(isset($_GET['searchBtn'])){
                 if(empty($rows)){
                     echo $error->alert('alert-warning','検索結果がありませんでした');
                 }
             }
             if(isset($_POST['approvalModalBtn'])){
-                if(empty($_POST['check'])){
-                    echo $error->alert('alert-danger','勤怠を選択してください');
-                }
                 $values=explode(",",$_POST['check']);
                 foreach($values as $value){
-                    $statusChecks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
-                    foreach($statusChecks as $statusCheck){
-                        if((int)$statusCheck['status']!==1){
+                    $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
+                    foreach($Checks as $Check){
+                        if((int)$Check['status']!==1){
                             $judgment=true;
+                            $tabooLists[]=$Check['id'];
                         }
                     }
                 }
+                if($judgment){
+                    foreach($tabooLists as $tabooList){
+                        $statusChecks=$table->select("SELECT * FROM t_attendance_head LEFT JOIN m_employee ON m_employee.id=t_attendance_head.employee_id WHERE t_attendance_head.id=:head_id",['head_id'=>$tabooList]);
+                        foreach($statusChecks as $statusCheck){
+                            echo $error->alert("alert-primary","「申請中」以外が含まれています<br>年月:{$statusCheck['yyyymm']},社員番号:{$statusCheck['employee_no']},社員名:{$statusCheck['employee_name']}");
+                        }
+                    }
+                }
+                if(!empty($_POST['check']) && !$judgment){
+                    $table->begin();
+                    try{
+                        foreach($values as $value){
+                            $table->dbAccess('UPDATE t_attendance_head SET status=3 WHERE id=:id',['id'=>$value]);
+                        }
+                        $table->commit();
+                    }
+                    catch(Exception $ex){
+                        $table->rollback();
+                        exit();
+                    }
+                    echo $error->alert("alert-success","承認処理が完了しました");
+                }
             }
-            if($judgment){
-                echo $error->alert('alert-primary','「申請中」以外が含まれています');
-            }
+            
             
             ?>
             <div class="card">
@@ -220,8 +247,7 @@ if($_SESSION['mail']==''){
                 <div class="card-body">
                     <div class="container">
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <button type="button" class="btn btn-success" id="approvalBtn" data-bs-toggle="modal"
-                                data-bs-target="#approvalModal">承認</button>
+                            <button type="button" class="btn btn-success" id="approvalBtn" >承認</button>
                             <button type="button" class="btn btn-danger" id="backBtn" data-bs-toggle="modal"
                                 data-bs-target="#backModal">差戻</button>
                             <button type="button" class="btn btn-light" id="excelBtn" data-bs-toggle="modal"
@@ -249,6 +275,7 @@ if($_SESSION['mail']==''){
                                     if(is_numeric($_GET['page'])){
                                         $page=(int)$_GET['page'];
                                     }
+                                    $_SESSION['management_url'].="&page={$_GET['page']}";
                                 }
                                 else{
                                     $page=1;
@@ -269,6 +296,7 @@ if($_SESSION['mail']==''){
                                         <td scope="row">
                                             <div class="form-check">
                                                 <label for="checkbox">
+
                                                     <input class="form-check-input" type="checkbox" name="checkbox" id="<?php echo $row['head_id'];?>" value='<?php echo $row['head_id'];?>'/>
                                                 </label>
                                             </div>
@@ -279,7 +307,7 @@ if($_SESSION['mail']==''){
                                         <td class="status"><?php if($row['status']==0){echo "入力中";}elseif($row['status']==1){echo "申請中";}elseif($row['status']==2){echo "差戻中";}elseif($row['status']==3){echo "承認済み";}?></td>
                                         <td>
                                             <!-- head_idを取得するためにurlで送信している -->
-                                            <a class="btn btn-info" href="<?php echo $_SESSION['url'];?>&page=<?php echo $page;?>&head_id=<?php echo $row['head_id']; ?>">確認</a>
+                                            <a class="btn btn-info" href="<?php echo $_SESSION['management_url'];?>&page=<?php echo $page;?>&head_id=<?php echo $row['head_id']; ?>">確認</a>
                                         </td>
                                     </tr>   
                                 <?php endforeach?>
@@ -290,16 +318,16 @@ if($_SESSION['mail']==''){
                 <nav class="d-flex align-items-center justify-content-center">
                     <ul class="pagination">
                         <li class="page-item <?php if($page==1){echo 'disabled';}?>">
-                            <a class="page-link" href="<?php echo $_SESSION['url'];?>&page=<?php echo $page-1;?>">前</a>
+                            <a class="page-link" href="<?php echo $_SESSION['management_url'];?>&page=<?php echo $page-1;?>">前</a>
                         </li>
                         <?php foreach($countRows as $countRow):?>
                             <?php for($i=1;$i<=ceil($countRow['count(m_employee.id)']/5);$i++):?>
                                 <li class="page-item <?php if($page==$i){echo 'active';}?>">
-                                    <a class="page-link" href="<?php echo $_SESSION['url'];?>&page=<?php echo $i?>"><?php echo $i;?></a>
+                                    <a class="page-link" href="<?php echo $_SESSION['management_url'];?>&page=<?php echo $i?>"><?php echo $i;?></a>
                                 </li>
                             <?php endfor?>
                             <li class="page-item <?php if($page==ceil($countRow['count(m_employee.id)']/5)){echo 'disabled';}?>">
-                                <a class="page-link" href="<?php echo $_SESSION['url'];?>&page=<?php echo $page+1?>">次</a>
+                                <a class="page-link" href="<?php echo $_SESSION['management_url'];?>&page=<?php echo $page+1?>">次</a>
                             </li>
                         <?php endforeach?>
                     </ul>
@@ -481,11 +509,7 @@ if($_SESSION['mail']==''){
 </div><!-- /.modal -->
 
 
-<?php
-if(isset($_POST['approvalModalBtn'])){
-    
-}
-?>
+
 <div class="modal fade" id="approvalModal" tabindex="-1" aria-labelledby="exampleModalLabel">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -497,7 +521,7 @@ if(isset($_POST['approvalModalBtn'])){
         <p>選択した勤怠の承認を行いますか?</p>
       </div>
       <div class="modal-footer">
-        <form method="POST" action="management.php<?php echo $_SESSION['url'];?>">
+        <form method="POST" action="management.php<?php echo $_SESSION['management_url'];?>">
             <input type="hidden" id="check" class="check" name="check" value="">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
             <input type="submit" name="approvalModalBtn" class="btn btn-success" value="承認">

@@ -203,7 +203,7 @@
         else{
             $disabled='';
             foreach($attendanceHeads as $attendanceHead){
-                if($attendanceHead['status']==1){
+                if($attendanceHead['status']==1 || $attendanceHead['status']==3){
                     $disabled='disabled';
                 }
             }
@@ -536,8 +536,6 @@
                         </li>
                         <li class="nav-item">
                             <a href="login.php" id="logout" class="nav-link" aria-disabled="true">ログアウト</a>
-                        </label>
-                            </form>
                         </li>
                         
                     </ul>
@@ -577,8 +575,6 @@
                         </li>
                         <li class="nav-item">
                             <a href="login.php" id="logout" class="nav-link" aria-disabled="true">ログアウト</a>
-                        </label>
-                            </form>
                         </li>
                         
                     </ul>

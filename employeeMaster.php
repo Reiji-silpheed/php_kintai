@@ -20,9 +20,10 @@ if(isset($_GET['cBtn'])){
     $_SESSION['search-name']='';
     $_SESSION['search-mail']='';
     $_SESSION['search-calendar']='';
-    $_SESSION['url']='';
+    $_SESSION['employee_url']='';
     $_SESSION['search-authority']='';
 }
+
 /* エラーメッセージが出たときに入力した文字がもう一度出るようにした */
 if(isset($_POST['newAppModal-post'])){
     $_SESSION['new-number']=$_POST['number-new-post'];
@@ -45,6 +46,9 @@ if(isset($_POST['updateModalBtn'])){
 }
 if(isset($_POST['delModalBtn'])){
     $_SESSION['radio-del-id']=$_POST['radio-del-id'];
+}
+if(isset($_GET['page'])){
+    $_SESSION['employee_url'].="&page={$_GET['page']}";
 }
 $error=new Message();
 $table=new dbClass();
@@ -85,7 +89,7 @@ if(isset($_POST['newAppModal-post'])){
         if(empty($error->error)){
             $table->dbAccess("INSERT INTO m_employee (employee_no,employee_name,email,start_date,password,role_cd)VALUES(:employee_no,:employee_name,:email,:start_date,:password,:role_cd)",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post'],'password'=>$_POST['password-new-post'],'role_cd'=>$_POST['authority-new-post']]);
             $table->commit();
-            header("Location:employeeMaster.php?{$_SESSION['url']}");
+            header("Location:employeeMaster.php?{$_SESSION['employee_url']}");
             exit();
         }
     }
@@ -112,13 +116,13 @@ if(isset($_POST['updateModalBtn'])){
         if(empty($error->error) && $_SESSION['update-password']==''){
             $table->dbAccess("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date,role_cd=:role_cd WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'role_cd'=>$_POST['authority-update-post'],'id'=>$_POST['radio-update-id']]);
             $table->commit();
-            header("Location:employeeMaster.php?{$_SESSION['url']}");
+            header("Location:employeeMaster.php?{$_SESSION['employee_url']}");
             exit();
         }
         if(empty($error->error) && $_SESSION['update-password']!==''){
             $table->dbAccess("UPDATE m_employee SET employee_no=:employee_no,employee_name=:employee_name,start_date=:start_date,password=:password,role_cd=:role_cd WHERE id=:id",['employee_no'=>$_POST['number-update-post'],'employee_name'=>$_POST['name-update-post'],'start_date'=>$_POST['calendar-update-post'],'password'=>$_POST['password-update-post'],'role_cd'=>$_POST['authority-update-post'],'id'=>$_POST['radio-update-id']]);
             $table->commit();
-            header("Location:employeeMaster.php?{$_SESSION['url']}");
+            header("Location:employeeMaster.php?{$_SESSION['employee_url']}");
             exit();
         }
 
@@ -134,7 +138,7 @@ if(isset($_POST['delModalBtn'])){
     try{
         $table->dbAccess("DELETE FROM m_employee WHERE id=:id",['id'=>$_SESSION['radio-del-id']]);
         $table->commit();
-        header("Location:employeeMaster.php?{$_SESSION['url']}");
+        header("Location:employeeMaster.php?{$_SESSION['employee_url']}");
         exit();
     }
     catch(Exception $ex){
@@ -397,7 +401,7 @@ if(isset($_POST['delModalBtn'])){
                                             }
                                             $url.="&authority-search-get={$_GET['authority-search-get']}";
                                             $url.="&searchBtn=検索";
-                                            $_SESSION['url']=$url;
+                                            $_SESSION['employee_url']=$url;
                                             if(!empty($list)){
                                                 $where=implode(' and ',$list);
                                                 $sql.=" WHERE {$where}";

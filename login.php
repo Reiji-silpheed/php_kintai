@@ -9,6 +9,8 @@
     require_once './messageClass.php';
     require_once './dbClass.php';
     session_start();
+    /*ログアウト後、メールアドレスが入力されていないときにログアウトするようにした */
+    unset($_SESSION['mail']);
     date_default_timezone_set('Asia/Tokyo');
     $firstDate=new DateTime();
     $error=new Message();
