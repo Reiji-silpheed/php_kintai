@@ -48,7 +48,7 @@ if(isset($_POST['delModalBtn'])){
     $_SESSION['radio-del-id']=$_POST['radio-del-id'];
 }
 if(isset($_GET['page'])){
-    $_SESSION['employee_url'].="&page={$_GET['page']}";
+    $_SESSION['employee_url']="&page={$_GET['page']}";
 }
 $error=new Message();
 $table=new dbClass();

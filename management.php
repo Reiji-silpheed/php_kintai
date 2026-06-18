@@ -10,7 +10,7 @@
     <title>勤怠管理</title>
     <script>
         $(function(){
-            $(document).on("click","#approvalBtn",function(){
+            $(document).on('click','#approvalBtn',function(){
                 $(".alert").remove();
                 const checks=[];
                 $(':checkbox[name="checkbox"]:checked').each(function(){
@@ -20,11 +20,55 @@
                     $("#title").after('<div class="alert alert-danger" role="alert">勤怠を選択してください</div>');
                 }
                 else{
-                    $("#approvalModal").modal("show");                       
+                    $("#approvalModal").modal("show");
                 }
+            })
+            /* モーダルでエラーが出て再表示するときも値を入れるために、モーダルを開いたときに値を入れるようにしている */
+            $('#approvalModal').on('show.bs.modal',function(){
+                $(".alert").remove();
+                const checks=[];
+                $(':checkbox[name="checkbox"]:checked').each(function(){
+                   checks.push($(this).val());
+                })
                 var status=checks.join(",");
-                $(".check").val(status);
+                $(".approvalCheck").val(status);
+            })
+            $(document).on("click","#backBtn",function(){
+                $(".alert").remove();
+                const checks=[];
+                $(':checkbox[name="checkbox"]:checked').each(function(){
+                    checks.push($(this).val());
+                })
+                if(checks.length===0){
+                    $("#title").after('<div class="alert alert-danger" role="alert">勤怠を選択してください</div>');
+                }
+                else{
+                    $("#backModal").modal("show");
+                }
+            })
+            $('#backModal').on('show.bs.modal',function(){
+                $(".alert").remove();
+                const checks=[];
+                $(':checkbox[name="checkbox"]:checked').each(function(){
+                    checks.push($(this).val());
+                })
+                var status=checks.join(",");
+                $(".backCheck").val(status);
             }) 
+            $(document).on("click","#excelBtn",function(){
+                $(".alert").remove();
+                $(':checkbox[name="checkbox"]:checked').each(function(){
+                    checks.push($(this).val());
+                })
+                if(checks.length===0){
+                    $("#title").after('<div class="alert alert-danger" role="alert">勤怠を選択してください</div>');
+                }
+                else{
+                    $("#excelModal").modal("show");
+                    var status=checks.join(",");
+                    $("#excelCheck").val(status);
+                }
+            })
         })
     </script>
 </head>
@@ -157,13 +201,15 @@ if($_SESSION['mail']==''){
             $judgment=false;
             $tabooLists=[];
             $values=[];
+            $message="";
             if(isset($_GET['searchBtn'])){
                 if(empty($rows)){
                     echo $error->alert('alert-warning','検索結果がありませんでした');
                 }
             }
             if(isset($_POST['approvalModalBtn'])){
-                $values=explode(",",$_POST['check']);
+                $values=explode(",",$_POST['approvalCheck']);
+                $_SESSION['check']=$values;
                 foreach($values as $value){
                     $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
                     foreach($Checks as $Check){
@@ -177,16 +223,18 @@ if($_SESSION['mail']==''){
                     foreach($tabooLists as $tabooList){
                         $statusChecks=$table->select("SELECT * FROM t_attendance_head LEFT JOIN m_employee ON m_employee.id=t_attendance_head.employee_id WHERE t_attendance_head.id=:head_id",['head_id'=>$tabooList]);
                         foreach($statusChecks as $statusCheck){
-                            echo $error->alert("alert-primary","「申請中」以外が含まれています<br>年月:{$statusCheck['yyyymm']},社員番号:{$statusCheck['employee_no']},社員名:{$statusCheck['employee_name']}");
+                            $message.="<br>年月:{$statusCheck['yyyymm']},社員番号:{$statusCheck['employee_no']},社員名:{$statusCheck['employee_name']}";
                         }
                     }
+                    echo $error->alert("alert-primary","「申請中」以外が含まれています{$message}");
                 }
-                if(!empty($_POST['check']) && !$judgment){
+                if(!empty($_POST['approvalCheck']) && !$judgment){
                     $table->begin();
                     try{
                         foreach($values as $value){
                             $table->dbAccess('UPDATE t_attendance_head SET status=3 WHERE id=:id',['id'=>$value]);
                         }
+                        $_SESSION['check']=[];
                         $table->commit();
                     }
                     catch(Exception $ex){
@@ -194,6 +242,48 @@ if($_SESSION['mail']==''){
                         exit();
                     }
                     echo $error->alert("alert-success","承認処理が完了しました");
+                }
+            }
+            if(isset($_POST['backModalBtn'])){
+                $values=explode(",",$_POST['backCheck']);
+                $_SESSION['check']=$values;
+                if($_POST['backReason']==''){
+                    $error->setError('reason',"差戻理由が入力されていません");
+                }
+                else{
+                    foreach($values as $value){
+                        $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
+                        foreach($Checks as $Check){
+                            if((int)$Check['status']!==1){
+                                $judgment=true;
+                                $tabooLists[]=$Check['id'];
+                            }
+                        }
+                    }
+                    if($judgment){
+                        foreach($tabooLists as $tabooList){
+                            $statusChecks=$table->select("SELECT * FROM t_attendance_head LEFT JOIN m_employee ON m_employee.id=t_attendance_head.employee_id WHERE t_attendance_head.id=:head_id",['head_id'=>$tabooList]);
+                            foreach($statusChecks as $statusCheck){
+                                $message.="<br>年月:{$statusCheck['yyyymm']},社員番号:{$statusCheck['employee_no']},社員名:{$statusCheck['employee_name']}";
+                            }
+                        }
+                        echo $error->alert("alert-primary","「申請中」以外が含まれています{$message}");
+                    }
+                    if(!empty($_POST['backCheck'] && !$judgment)){
+                        $table->begin();
+                        try{
+                            foreach($values as $value){
+                                $table->dbAccess('UPDATE t_attendance_head SET status=2,reject_comment=:reject_comment WHERE id=:id',['reject_comment'=>$_POST['backReason'],'id'=>$value]);
+                            }
+                            $_SESSION['check']=[];
+                            $table->commit();
+                        }
+                        catch(Exception $ex){
+                            $table->rollback();
+                            exit();
+                        }
+                        echo $error->alert("alert-success","承認処理が完了しました");
+                    }
                 }
             }
             
@@ -247,11 +337,9 @@ if($_SESSION['mail']==''){
                 <div class="card-body">
                     <div class="container">
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <button type="button" class="btn btn-success" id="approvalBtn" >承認</button>
-                            <button type="button" class="btn btn-danger" id="backBtn" data-bs-toggle="modal"
-                                data-bs-target="#backModal">差戻</button>
-                            <button type="button" class="btn btn-light" id="excelBtn" data-bs-toggle="modal"
-                                data-bs-target="#excelModal">Excel出力</button>
+                            <button type="button" class="btn btn-success" id="approvalBtn">承認</button>
+                            <button type="button" class="btn btn-danger" id="backBtn">差戻</button>
+                            <button type="button" class="btn btn-light" id="excelBtn">Excel出力</button>
                             <button type="button" class="btn btn-light" id="PDFBtn" data-bs-toggle="modal"
                                 data-bs-target="#PDFModal">PDF出力</button>
                         </div>
@@ -269,13 +357,22 @@ if($_SESSION['mail']==''){
                                 </tr>
                             </thead>
                             <tbody>
+                                <?php if(isset($_GET['page'])):?>
+                                    <script>
+                                        const checks=[];
+                                        $(':checkbox[name="checkbox"]:checked').each(function(){
+                                            checks.push($(this).val());
+                                        })
+                                        var status=checks.join(",");
+                                        $("#pageCheck").val(status);
+                                    </script>
+                                <?php endif?>
                                 <?php
                                 $page=1;
                                 if(isset($_GET['page'])){
                                     if(is_numeric($_GET['page'])){
                                         $page=(int)$_GET['page'];
                                     }
-                                    $_SESSION['management_url'].="&page={$_GET['page']}";
                                 }
                                 else{
                                     $page=1;
@@ -296,8 +393,7 @@ if($_SESSION['mail']==''){
                                         <td scope="row">
                                             <div class="form-check">
                                                 <label for="checkbox">
-
-                                                    <input class="form-check-input" type="checkbox" name="checkbox" id="<?php echo $row['head_id'];?>" value='<?php echo $row['head_id'];?>'/>
+                                                    <input class="form-check-input" type="checkbox" name="checkbox" id="<?php echo $row['head_id'];?>" value='<?php echo $row['head_id'];?>' <?php if(isset($_POST['approvalModalBtn']) || isset($_POST['backModalBtn'])){if(in_array($row['head_id'],$_SESSION['check'])){echo 'checked';}}?>/>
                                                 </label>
                                             </div>
                                         </td>
@@ -315,6 +411,7 @@ if($_SESSION['mail']==''){
                         </table>    
                     </div>
                 </div>
+                <input type="hidden" id="pageCheck" name="pageCheck">
                 <nav class="d-flex align-items-center justify-content-center">
                     <ul class="pagination">
                         <li class="page-item <?php if($page==1){echo 'disabled';}?>">
@@ -323,11 +420,11 @@ if($_SESSION['mail']==''){
                         <?php foreach($countRows as $countRow):?>
                             <?php for($i=1;$i<=ceil($countRow['count(m_employee.id)']/5);$i++):?>
                                 <li class="page-item <?php if($page==$i){echo 'active';}?>">
-                                    <a class="page-link" href="<?php echo $_SESSION['management_url'];?>&page=<?php echo $i?>"><?php echo $i;?></a>
+                                    <a class="page-link" href="<?php echo $_SESSION['management_url'];?>&page=<?php echo $i;?>"><?php echo $i;?></a>
                                 </li>
                             <?php endfor?>
                             <li class="page-item <?php if($page==ceil($countRow['count(m_employee.id)']/5)){echo 'disabled';}?>">
-                                <a class="page-link" href="<?php echo $_SESSION['management_url'];?>&page=<?php echo $page+1?>">次</a>
+                                <a class="page-link" href="<?php echo $_SESSION['management_url'];?>&page=<?php echo $page+1;?>">次</a>
                             </li>
                         <?php endforeach?>
                     </ul>
@@ -513,20 +610,74 @@ if($_SESSION['mail']==''){
 <div class="modal fade" id="approvalModal" tabindex="-1" aria-labelledby="exampleModalLabel">
   <div class="modal-dialog">
     <div class="modal-content">
+        <div class="modal-header bg-info">
+            <h1 class="modal-title fs-5 text-light" id="exampleModalLabel">承認</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+        </div>
+        <div class="modal-body">
+            <p>選択した勤怠の承認を行いますか?</p>
+        </div>
+        <div class="modal-footer">
+            <form method="POST" action="management.php<?php echo $_SESSION['management_url'];?>">
+                <input type="hidden" id="approvalCheck" class="approvalCheck" name="approvalCheck" value="">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <input type="submit" name="approvalModalBtn" class="btn btn-success" value="承認">
+            </form>
+        </div><!-- /.modal-footer -->
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<?php if(isset($_POST['backModalBtn'])):?>
+    <?php if($_POST['backReason']==''):?>
+        <script>
+            $(function(){
+                $("#backModal").modal("show");
+            })
+        </script>
+    <?php endif?>
+<?php endif?>
+<div class="modal fade" id="backModal" tabindex="-1" aria-labelledby="exampleModalLabel">
+  <div class="modal-dialog">
+    <div class="modal-content">
+        <div class="modal-header bg-info">
+            <h1 class="modal-title fs-5 text-light" id="exampleModalLabel">差戻</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+         </div>
+        <form method="POST" action="management.php<?php echo $_SESSION['management_url'];?>">
+            <div class="modal-body">
+                <p>選択した勤怠の差戻を行いますか？</p>
+                <label for="backReason">差戻理由:</label>
+                <textarea class="form-control <?php echo $error->invalid('reason');?>" name="backReason" id="backReason" rows="4"></textarea>
+                <?php echo $error->getError('reason');?>
+            </div>
+            <div class="modal-footer">
+                    <input type="hidden" id="backCheck" class="backCheck" name="backCheck" value="">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <input type="submit" name="backModalBtn" class="btn btn-danger" value="差戻">
+            </div><!-- /.modal-footer -->
+        </form>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<div class="modal fade" id="excelModal" tabindex="-1" aria-labelledby="exampleModalLabel">
+  <div class="modal-dialog">
+    <div class="modal-content">
       <div class="modal-header bg-info">
-        <h1 class="modal-title fs-5 text-light" id="exampleModalLabel">承認</h1>
+        <h1 class="modal-title fs-5 text-light" id="exampleModalLabel">Excel出力</h1>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
       </div>
       <div class="modal-body">
-        <p>選択した勤怠の承認を行いますか?</p>
+        <p>選択した勤怠のExcel出力を行いますか?</p>
       </div>
-      <div class="modal-footer">
-        <form method="POST" action="management.php<?php echo $_SESSION['management_url'];?>">
-            <input type="hidden" id="check" class="check" name="check" value="">
+      <form method="POST" action="management.php<?php echo $_SESSION['management_url'];?>">
+        <div class="modal-footer">
+            <input type="hidden" id="excelCheck" name="excelCheck">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-            <input type="submit" name="approvalModalBtn" class="btn btn-success" value="承認">
-        </form>
-      </div><!-- /.modal-footer -->
+            <button type="button" class="btn btn-success">出力</button>
+        </div><!-- /.modal-footer -->
+      </form>
     </div><!-- /.modal-content -->
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
