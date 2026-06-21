@@ -1,3 +1,229 @@
+<?php
+require 'vendor/autoload.php'; // Composerでインストールした場合
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+require_once './loginClass.php';
+require_once './messageClass.php';
+require_once './dbClass.php';
+session_start();
+date_default_timezone_set('Asia/Tokyo');
+$login=new dbClass();
+$error=new Message();
+$table=new dbClass();
+$date=new DateTime();
+if($_SESSION['mail']==''){
+    header('Location:./login.php');
+}
+
+if(isset($_POST['excelModalBtn'])){
+    $values=explode(",",$_POST['excelCheck']);
+    foreach($values as $value){
+        $excelChecks=$table->select('SELECT * FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id WHERE t_attendance_head.id=:head_id',['head_id'=>$value]);
+        $excelDetails=$table->select('SELECT * FROM t_attendance_detail WHERE head_id=:head_id',['head_id'=>$value]);
+    }
+    // 新しいスプレッドシート作成
+    foreach($excelChecks as $excelCheck){
+        $date = DateTime::createFromFormat('Ym', $excelCheck['yyyymm']);
+        $yyyy_mm=$date->format('Y-m');
+        $part=explode('-',$yyyy_mm);
+        $yyyy=$part[0];
+        $mm=$part[1];
+        $weeks=['日','月','火','水','木','金','土'];
+        $firstWeekDay=date('w',strtotime($yyyy_mm.'-01'));
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        //行と列の幅を設定
+        $sheet->getDefaultColumnDimension()->setWidth(15);
+        $sheet->getDefaultRowDimension()->setRowHeight(20);
+        $sheet->getColumnDimension('A')->setWidth(5);
+        $sheet->getColumnDimension('K')->setWidth(40);
+        $sheet->getRowDimension(7)->setRowHeight(30);
+    
+
+        $sheet->mergeCells('H2:I2');
+        $sheet->mergeCells('H3:I3');
+        $kbn='';
+        $start_time='';
+        $end_time='';
+        $rest_time='';
+        $night_rest_time='';
+        $work_time='';
+        $over_time='';
+        /* |で折り返すようにした */
+        $headers = [['日', '曜日', '区分', '開始|時刻','終了|時刻','昼休憩|時間(h)','夜休憩|時間(h)','勤務|時間','残業|時間','備考']];
+        foreach($excelDetails as $excelDetail){
+            $date=($firstWeekDay+$excelDetail['day']-1)%7;
+            if($excelDetail['kbn']==1){
+                $kbn="出勤";
+                $start=new DateTime("{$excelDetail['start_time']}");
+                $start_time=$start->format("H:i");
+                $end=new DateTime("{$excelDetail['end_time']}");
+                $end_time=$end->format("H:i");
+                $rest=new DateTime("{$excelDetail['rest_time']}");
+                $rest_time=$rest->format("H:i");
+                $night_rest=new DateTime("{$excelDetail['night_rest_time']}");
+                $night_rest_time=$night_rest->format("H:i");
+                $work=new DateTime("{$excelDetail['work_time']}");
+                $work_time=$work->format("H:i");
+                $over=new DateTime("{$excelDetail['over_time']}");
+                $over_time=$over->format("H:i");
+            }
+            if($excelDetail['kbn']==2){
+                $kbn="休日";
+            }
+            if($excelDetail['kbn']==3){
+                $kbn="有給";
+            }
+            if($excelDetail['kbn']==4){
+                $kbn="休出";
+                $start=new DateTime("{$excelDetail['start_time']}");
+                $start_time=$start->format("H:i");
+                $end=new DateTime("{$excelDetail['end_time']}");
+                $end_time=$end->format("H:i");
+                $rest=new DateTime("{$excelDetail['rest_time']}");
+                $rest_time=$rest->format("H:i");
+                $night_rest=new DateTime("{$excelDetail['night_rest_time']}");
+                $night_rest_time=$night_rest->format("H:i");
+                $work=new DateTime("{$excelDetail['work_time']}");
+                $work_time=$work->format("H:i");
+                $over=new DateTime("{$excelDetail['over_time']}");
+                $over_time=$over->format("H:i");
+            }
+            if($excelDetail['kbn']==5){
+                $kbn="欠勤";
+            }
+            if($excelDetail['kbn']==6){
+                $kbn="特休";
+            }
+            if($excelDetail['kbn']==7){
+                $kbn="代休";
+            }
+            if($excelDetail['kbn']==8){
+                $kbn="振休";
+            }
+            $headers[]=[$excelDetail['day'],$weeks[$date],$kbn,$start_time,$end_time,$rest_time,$night_rest_time,$work_time,$over_time,$excelDetail['remarks']];
+        }
+        
+        $employee=[['社員番号',"{$excelCheck['employee_no']}"]
+                    ,['氏名',"{$excelCheck['employee_name']}"]
+                    ];
+        
+        $sum=[['勤務時間合計','','168:00']
+                ,['残業時間合計','','00:00']
+                ];
+
+        $data = array_map(fn($v) => str_replace('|', "\n", $v), $headers);
+        $row = 7;
+        foreach ($data as $rowData) {
+            $col = 'B';
+            foreach ($rowData as $cellValue) {
+                $sheet->setCellValue($col . $row, $cellValue);
+                $col++;
+            }
+            $row++;
+            for ($i = 8; $i < $row; $i++) {
+                $sheet->getRowDimension($i)->setRowHeight(25);
+            }
+        }
+
+        $employeeRow=2;
+        foreach ($employee as $rowData) {
+            $employeeCol = 'B';
+            foreach ($rowData as $cellValue) {
+                $sheet->setCellValue($employeeCol . $employeeRow, $cellValue);
+                $employeeCol++;
+            }
+            $employeeRow++;
+            for ($i = 2; $i < $employeeRow; $i++) {
+                $sheet->getRowDimension($i)->setRowHeight(20);
+            }
+        }
+
+        $sumRow=2;
+        foreach ($sum as $rowData) {
+            $sumCol = 'H';
+            foreach ($rowData as $cellValue) {
+                $sheet->setCellValue($sumCol . $sumRow, $cellValue);
+                $sumCol++;
+            }
+            $sumRow++;
+            for ($i = 2; $i < $sumRow; $i++) {
+                $sheet->getRowDimension($i)->setRowHeight(20);
+            }
+        }
+
+        $sheet->getStyle('B7:K7')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'B0C4DE']
+            ]
+        ]);
+        
+        $sheet->getStyle('B7:K' . ($row - 1))->applyFromArray([
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical'   => Alignment::VERTICAL_CENTER
+            ],
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+            ]
+        ]);
+
+        $sheet->getStyle('B2:B3')->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'C0C0C0']
+            ]
+        ]);
+
+        $sheet->getStyle('B2:C3')->applyFromArray([
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+            ]
+        ]);
+
+        $sheet->getStyle('H2:H3')->applyFromArray([
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical'   => Alignment::VERTICAL_CENTER
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '98FB98']
+            ]
+        ]);
+
+        $sheet->getStyle('H2:J3')->applyFromArray([
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+            ]
+        ]);
+
+        $sheet->getStyle('B6')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+        $sheet->getStyle('J2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('J3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+        $sheet->getStyle('B7:K7')->getAlignment()->setWrapText(true);
+        $sheet->getStyle('K7:K'. ($row - 1))->getAlignment()->setWrapText(true);
+
+        $sheet->setCellValue('B6', "{$yyyy}年{$mm}月");
+
+        // Excelファイルとして出力
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header("Content-Disposition: attachment;filename={$excelCheck['yyyymm']}_{$excelCheck['employee_name']}.xlsx");
+        header('Cache-Control: max-age=0');
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit();
+    }
+}
+?>
+
 <head>
     <meta http-equiv="content-type" charset="utf-8" />
     <!-- ①：Bootstrapで使うCSSを読み込む -->
@@ -55,8 +281,10 @@
                 var status=checks.join(",");
                 $(".backCheck").val(status);
             }) 
+
             $(document).on("click","#excelBtn",function(){
                 $(".alert").remove();
+                const checks=[];
                 $(':checkbox[name="checkbox"]:checked').each(function(){
                     checks.push($(this).val());
                 })
@@ -72,20 +300,7 @@
         })
     </script>
 </head>
-<?php
-require_once './loginClass.php';
-require_once './messageClass.php';
-require_once './dbClass.php';
-session_start();
-date_default_timezone_set('Asia/Tokyo');
-$login=new dbClass();
-$error=new Message();
-$table=new dbClass();
-$date=new DateTime();
-if($_SESSION['mail']==''){
-    header('Location:./login.php');
-}
-?>
+
 <body>
     <header>
         <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom border-body" data-bs-theme="dark">
@@ -452,7 +667,6 @@ if($_SESSION['mail']==''){
                 <?php
                 $attendanceDetails=$table->select('SELECT * FROM t_attendance_detail WHERE head_id=:head_id',['head_id'=>$_GET['head_id']]);
                 $attendanceHeads=$table->select('SELECT * FROM t_attendance_head WHERE id=:id',['id'=>$_GET['head_id']]);
-                $weeks=['日','月','火','水','木','金','土'];
                 foreach($attendanceHeads as $attendanceHead){
                     $date = DateTime::createFromFormat('Ym', $attendanceHead['yyyymm']);
                     $yyyy_mm=$date->format('Y-m');
@@ -675,7 +889,7 @@ if($_SESSION['mail']==''){
         <div class="modal-footer">
             <input type="hidden" id="excelCheck" name="excelCheck">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-            <button type="button" class="btn btn-success">出力</button>
+            <input type="submit" class="btn btn-success" name="excelModalBtn" value="出力">
         </div><!-- /.modal-footer -->
       </form>
     </div><!-- /.modal-content -->
