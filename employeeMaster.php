@@ -340,12 +340,12 @@ if(isset($_POST['delModalBtn'])){
                                 <table class="table mt-2">
                                     <thead class="table-dark">
                                         <tr>
-                                            <th scope="col">#</th>
-                                            <th scope="col">社員番号</th>
-                                            <th scope="col">社員名</th>
-                                            <th scope="col">メールアドレス</th>
-                                            <th scope="col">入社日</th>
-                                            <th scope="col">権限</th>
+                                            <th scope="col align-text-top">#</th>
+                                            <th scope="col align-text-top">社員番号</th>
+                                            <th scope="col align-text-top">社員名</th>
+                                            <th scope="col align-text-top">メールアドレス</th>
+                                            <th scope="col align-text-top">入社日</th>
+                                            <th scope="col align-text-top">権限</th>
                                         </tr>
                                     </thead>
                                     <tbody>

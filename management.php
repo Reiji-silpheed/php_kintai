@@ -39,12 +39,15 @@ if(isset($_POST['excelModalBtn'])){
 
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
+
+            /* 文字の大きさを調整 */
+            $spreadsheet->getDefaultStyle()->getFont()->setSize(5);
+
             //行と列の幅を設定
             $sheet->getDefaultColumnDimension()->setWidth(15);
-            $sheet->getDefaultRowDimension()->setRowHeight(20);
+            $sheet->getDefaultRowDimension()->setRowHeight(10);
             $sheet->getColumnDimension('A')->setWidth(5);
-            $sheet->getColumnDimension('K')->setWidth(40);
-            $sheet->getRowDimension(7)->setRowHeight(30);
+            $sheet->getColumnDimension('K')->setWidth(50);
             /* セルを結合 */
             $sheet->mergeCells('H2:I2');
             $sheet->mergeCells('H3:I3');
@@ -141,14 +144,19 @@ if(isset($_POST['excelModalBtn'])){
             
             foreach ($data as $rowData) {
                 $col = 'B';
-                $remarks=floor(mb_strlen($rowData[9])/20)+1;
+                $remarks=floor(mb_strlen($rowData[9])/30)+1;
                 foreach ($rowData as $cellValue) {
                     /* データ挿入 */
                     $sheet->setCellValue($col . $row, $cellValue);
                     $col++;
                 }
                 /* セルの高さ調整 */
-                $sheet->getRowDimension($row)->setRowHeight(25*$remarks);
+                if($row==7){
+                    $sheet->getRowDimension($row)->setRowHeight(20);
+                }
+                else{
+                    $sheet->getRowDimension($row)->setRowHeight(12*$remarks);
+                }
                 $row++;
             }
 
@@ -161,7 +169,7 @@ if(isset($_POST['excelModalBtn'])){
                 }
                 $employeeRow++;
                 for ($i = 2; $i < $employeeRow; $i++) {
-                    $sheet->getRowDimension($i)->setRowHeight(20);
+                    $sheet->getRowDimension($i)->setRowHeight(10);
                 }
             }
 
@@ -174,7 +182,7 @@ if(isset($_POST['excelModalBtn'])){
                 }
                 $sumRow++;
                 for ($i = 2; $i < $sumRow; $i++) {
-                    $sheet->getRowDimension($i)->setRowHeight(20);
+                    $sheet->getRowDimension($i)->setRowHeight(10);
                 }
             }
 
@@ -239,16 +247,22 @@ if(isset($_POST['excelModalBtn'])){
             $sheet->getStyle('K7:K'. ($row - 1))->getAlignment()->setWrapText(true);
             $sheet->setCellValue('B6', "{$yyyy}年{$mm}月");
             $tempFile = sys_get_temp_dir() . "/{$excelCheck['yyyymm']}_{$excelCheck['employee_name']}.xlsx";
+            $fileNames[]=$tempFile;
             /* チェックが一つの時はexcelファイルをダウンロードさせる */
             if(count($values)==1){
-                // Excelファイルとして出力
+                #Excelファイルをブラウザに直接ダウンロードさせる
                 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
                 header("Content-Disposition: attachment;filename={$excelCheck['yyyymm']}_{$excelCheck['employee_name']}.xlsx");
                 header('Cache-Control: max-age=0');
+                $writer = new Xlsx($spreadsheet);
+                $writer->save('php://output');
+                exit;
             }
-            $fileNames[]=$tempFile;
-            $writer = new Xlsx($spreadsheet);
-            $writer->save($tempFile);
+            else{
+                #一時ディレクトリに保存
+                $writer = new Xlsx($spreadsheet);
+                $writer->save($tempFile);
+            }
         }
     }
     if(count($values)>1){
@@ -268,6 +282,293 @@ if(isset($_POST['excelModalBtn'])){
         header('Content-Disposition: attachment; filename="' . basename($zipFile) . '"');
         header('Content-Length: ' . filesize($zipFile));
         readfile($zipFile);
+
+        unlink($excelPath);
+        unlink($zipPath);
+        rmdir($tempDir);
+        exit;
+    }
+}
+
+if(isset($_POST['pdfModalBtn'])){
+    $fileNames=[];
+    $values=explode(",",$_POST['pdfCheck']);
+    foreach($values as $value){
+        $pdfChecks=$table->select('SELECT * FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id WHERE t_attendance_head.id=:head_id',['head_id'=>$value]);
+        $pdfDetails=$table->select('SELECT * FROM t_attendance_detail WHERE head_id=:head_id',['head_id'=>$value]);
+        /* 勤務時間と残業時間の秒の合計を取得 */
+        $sumPdfDetails=$table->select('SELECT SUM(TIME_TO_SEC(work_time)) as sum_work,SUM(TIME_TO_SEC(over_time)) as sum_over FROM t_attendance_detail WHERE head_id=:head_id',['head_id'=>$value]);
+
+        // 新しいスプレッドシート作成
+        foreach($pdfChecks as $pdfCheck){
+            $date = DateTime::createFromFormat('Ym', $pdfCheck['yyyymm']);
+            $yyyy_mm=$date->format('Y-m');
+            $part=explode('-',$yyyy_mm);
+            $yyyy=$part[0];
+            $mm=$part[1];
+            $weeks=['日','月','火','水','木','金','土'];
+            $firstWeekDay=date('w',strtotime($yyyy_mm.'-01'));
+
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+
+            /* 文字の大きさを調整 */
+            $spreadsheet->getDefaultStyle()->getFont()->setSize(6);
+
+            //行と列の幅を設定
+            $sheet->getDefaultColumnDimension()->setWidth(10);
+            $sheet->getDefaultRowDimension()->setRowHeight(10);
+            $sheet->getColumnDimension('A')->setWidth(5);
+            $sheet->getColumnDimension('K')->setWidth(50);
+            /* セルを結合 */
+            $sheet->mergeCells('H2:I2');
+            $sheet->mergeCells('H3:I3');
+            /* |で折り返すようにした */
+            $headers = [['日', '曜日', '区分', '開始|時刻','終了|時刻','昼休憩|時間(h)','夜休憩|時間(h)','勤務|時間','残業|時間','備考']];
+            foreach($pdfDetails as $pdfDetail){
+                $date=($firstWeekDay+$pdfDetail['day']-1)%7;
+                $kbn='';
+                $start_time='';
+                $end_time='';
+                $rest_time='';
+                $night_rest_time='';
+                $work_time='';
+                $over_time='';
+                if($pdfDetail['kbn']==1){
+                    $kbn="出勤";
+                    $start=new DateTime("{$pdfDetail['start_time']}");
+                    $start_time=$start->format("H:i");
+                    $end=new DateTime("{$pdfDetail['end_time']}");
+                    $end_time=$end->format("H:i");
+                    $rest=new DateTime("{$pdfDetail['rest_time']}");
+                    $rest_time=$rest->format("H:i");
+                    $night_rest=new DateTime("{$pdfDetail['night_rest_time']}");
+                    $night_rest_time=$night_rest->format("H:i");
+                    $work=new DateTime("{$pdfDetail['work_time']}");
+                    $work_time=$work->format("H:i");
+                    $over=new DateTime("{$pdfDetail['over_time']}");
+                    $over_time=$over->format("H:i");
+                }
+                if($pdfDetail['kbn']==2){
+                    $kbn="休日";
+                }
+                if($pdfDetail['kbn']==3){
+                    $kbn="有給";
+                }
+                if($pdfDetail['kbn']==4){
+                    $kbn="休出";
+                    $start=new DateTime("{$pdfDetail['start_time']}");
+                    $start_time=$start->format("H:i");
+                    $end=new DateTime("{$pdfDetail['end_time']}");
+                    $end_time=$end->format("H:i");
+                    $rest=new DateTime("{$pdfDetail['rest_time']}");
+                    $rest_time=$rest->format("H:i");
+                    $night_rest=new DateTime("{$pdfDetail['night_rest_time']}");
+                    $night_rest_time=$night_rest->format("H:i");
+                    $work=new DateTime("{$pdfDetail['work_time']}");
+                    $work_time=$work->format("H:i");
+                    $over=new DateTime("{$pdfDetail['over_time']}");
+                    $over_time=$over->format("H:i");
+                }
+                if($pdfDetail['kbn']==5){
+                    $kbn="欠勤";
+                }
+                if($pdfDetail['kbn']==6){
+                    $kbn="特休";
+                }
+                if($pdfDetail['kbn']==7){
+                    $kbn="代休";
+                }
+                if($pdfDetail['kbn']==8){
+                    $kbn="振休";
+                }
+                $headers[]=[$pdfDetail['day'],$weeks[$date],$kbn,$start_time,$end_time,$rest_time,$night_rest_time,$work_time,$over_time,$pdfDetail['remarks']];
+            }
+            
+            $employee=[['社員番号',"{$pdfCheck['employee_no']}"]
+                        ,['氏名',"{$pdfCheck['employee_name']}"]
+                        ];
+            /* 勤務時間合計と残業時間合計を秒からH:iに変形 */
+            foreach($sumPdfDetails as $sumPdfDetail){
+                $work_H=floor($sumPdfDetail['sum_work']/3600);
+                $work_i=floor(($sumPdfDetail['sum_work']%3600)/60);
+                $over_H=floor(($sumPdfDetail['sum_over']/3600));
+                $over_i=floor(($sumPdfDetail['sum_over']%3600)/60);
+                if($work_H<10){
+                    $work_H="0{$work_H}";
+                }
+                if($work_i<10){
+                    $work_i="0{$work_i}";
+                }
+                if($over_H<10){
+                    $over_H="0{$over_H}";
+                }
+                if($over_i<10){
+                    $over_i="0{$over_i}";
+                }
+            }
+            $sum=[['勤務時間合計','',"{$work_H}:{$work_i}"]
+                        ,['残業時間合計','',"{$over_H}:{$over_i}"]
+                        ];
+            /* |で改行できるように設定 */
+            $data = array_map(fn($v) => str_replace('|', "\n", $v), $headers);
+            $row = 7;
+            
+            foreach ($data as $rowData) {
+                $col = 'B';
+                $remarks=floor(mb_strlen($rowData[9])/30)+1;
+                foreach ($rowData as $cellValue) {
+                    /* データ挿入 */
+                    $sheet->setCellValue($col . $row, $cellValue);
+                    $col++;
+                }
+                /* セルの高さ調整 */
+                if($row==7){
+                    $sheet->getRowDimension($row)->setRowHeight(20);
+                }
+                else{
+                    $sheet->getRowDimension($row)->setRowHeight(12*$remarks);
+                }
+                $row++;
+            }
+
+            $employeeRow=2;
+            foreach ($employee as $rowData) {
+                $employeeCol = 'B';
+                foreach ($rowData as $cellValue) {
+                    $sheet->setCellValue($employeeCol . $employeeRow, $cellValue);
+                    $employeeCol++;
+                }
+                $employeeRow++;
+                for ($i = 2; $i < $employeeRow; $i++) {
+                    $sheet->getRowDimension($i)->setRowHeight(10);
+                }
+            }
+
+            $sumRow=2;
+            foreach ($sum as $rowData) {
+                $sumCol = 'H';
+                foreach ($rowData as $cellValue) {
+                    $sheet->setCellValue($sumCol . $sumRow, $cellValue);
+                    $sumCol++;
+                }
+                $sumRow++;
+                for ($i = 2; $i < $sumRow; $i++) {
+                    $sheet->getRowDimension($i)->setRowHeight(10);
+                }
+            }
+
+            /* 背景を変更 */
+            $sheet->getStyle('B7:K7')->applyFromArray([
+                
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'B0C4DE']
+                ]
+            ]);
+            
+            $sheet->getStyle('B7:K' . ($row - 1))->applyFromArray([
+                /* 上下中央寄せ */
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => Alignment::VERTICAL_CENTER
+                ],
+                /* 表の枠を作成 */
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+                ]
+            ]);
+
+            /* 背景を変更 */
+            $sheet->getStyle('B2:B3')->applyFromArray([
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'C0C0C0']
+                ]
+            ]);
+
+            /* 表の枠を作成 */
+            $sheet->getStyle('B2:C3')->applyFromArray([
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+                ]
+            ]);
+
+            $sheet->getStyle('H2:H3')->applyFromArray([
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => Alignment::VERTICAL_CENTER
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '98FB98']
+                ]
+            ]);
+
+            $sheet->getStyle('H2:J3')->applyFromArray([
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+                ]
+            ]);
+            /* 文字を右寄せ */
+            $sheet->getStyle('B6')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('J2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('J3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            /* 折り返しアリにする */
+            $sheet->getStyle('B7:K7')->getAlignment()->setWrapText(true);
+            $sheet->getStyle('K7:K'. ($row - 1))->getAlignment()->setWrapText(true);
+            $sheet->setCellValue('B6', "{$yyyy}年{$mm}月");
+
+            $tempDir = sys_get_temp_dir();
+            $excelPath = "{$tempDir}/{$pdfCheck['yyyymm']}_{$pdfCheck['employee_name']}.xlsx";
+
+            // Excel保存
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($excelPath);
+
+            // 2. LibreOffice CLIでPDF変換
+            $cmd = sprintf(
+                '"C:\\Program Files\\LibreOffice\\program\\soffice.exe" --headless --convert-to pdf --outdir %s %s',
+                escapeshellarg($tempDir),
+                escapeshellarg($excelPath)
+            );
+            exec($cmd, $output, $returnVar);
+
+            // LibreOfficeは同じファイル名で.pdfを出力するので取得
+            $generatedPdfPath = str_replace('.xlsx', '.pdf', $excelPath);
+            $fileNames[]=$generatedPdfPath;
+            /* チェックが一つの時はpdfファイルをダウンロードする */
+            if(count($values)==1){
+                // 3. PDFをダウンロードとして出力
+                header('Content-Type: application/pdf');
+                header("Content-Disposition: attachment; filename={$pdfCheck['yyyymm']}_{$pdfCheck['employee_name']}.pdf");
+                header('Content-Length: ' . filesize($generatedPdfPath));
+                readfile($generatedPdfPath);
+            }
+        }
+    }
+    if(count($values)>1){
+        $zipFile = __DIR__ . '/pdf_' . date('Ymd_His') . '.zip';
+        /* zipファイルを作成する */
+        $zip = new ZipArchive();
+        $zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        /* zipファイルにpdfファイルを入れる */
+        foreach ($fileNames as $file) {
+            $zip->addFile($file,basename($file)); // ZIP内のファイル名はbasename
+        }
+        /* zipファイルを閉じる */
+        $zip->close();
+
+        #ダウンロード用ヘッダ送信
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . basename($zipFile) . '"');
+        header('Content-Length: ' . filesize($zipFile));
+        readfile($zipFile);
+
+        unlink($excelPath);
+        unlink($zipPath);
+        rmdir($tempDir);
+        exit;
     }
 }
 ?>
@@ -561,7 +862,7 @@ if(isset($_POST['excelModalBtn'])){
                             $table->rollback();
                             exit();
                         }
-                        echo $error->alert("alert-success","承認処理が完了しました");
+                        echo $error->alert("alert-success","差戻処理が完了しました");
                     }
                 }
             }
@@ -626,12 +927,12 @@ if(isset($_POST['excelModalBtn'])){
                         <table class="table mt-2">
                             <thead class="table-dark">
                                 <tr>
-                                    <th scope="col">#</th>
-                                    <th scope="col">年月</th>
-                                    <th scope="col">社員番号</th>
-                                    <th scope="col">社員名</th>
-                                    <th scope="col">ステータス</th>
-                                    <th scope="col">確認</th>
+                                    <th scope="col align-text-top">#</th>
+                                    <th scope="col align-text-top">年月</th>
+                                    <th scope="col align-text-top">社員番号</th>
+                                    <th scope="col align-text-top">社員名</th>
+                                    <th scope="col align-text-top">ステータス</th>
+                                    <th scope="col align-text-top">確認</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -971,7 +1272,7 @@ if(isset($_POST['excelModalBtn'])){
       </div>
       <form method="POST" action="management.php<?php echo $_SESSION['management_url'];?>">
         <div class="modal-footer">
-            <input type="hidden" id="excelCheck" name="excelCheck">
+            <input type="hidden" id="pdfCheck" name="pdfCheck">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
             <input type="submit" class="btn btn-success" name="pdfModalBtn" value="出力">
         </div><!-- /.modal-footer -->
