@@ -18,30 +18,29 @@
     $error=new Message();
     $table=new dbClass();
     $login=new login();
-    $firstValue=$firstDate->format('Y-m');
     session_start();
+    $firstValue=$firstDate->format('Y-m');
+    $_SESSION['display-month']=$firstValue;
     if($_SESSION['mail']==""){
         header('Location:./login.php');
     } 
     if(isset($_POST['displayBtn'])){
         $_SESSION['display-month']=$_POST['month-post'];
-        if($_POST['month-post']!==''){
-            $firstParts=explode("-",$_SESSION['display-month']);
-            $yyyy=$firstParts[0];
-            $mm=$firstParts[1];
-            $yyyymm="{$yyyy}{$mm}";
-            $_SESSION['yyyymm']=$yyyymm;
-            $head_ids=$table->select('SELECT * FROM t_attendance_head WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$yyyymm]);
-            foreach($head_ids as $head_id){
-                $_SESSION['head_id']=$head_id['id'];
-            }
-        } 
     }
     
     $holidays=$table->select('SELECT * FROM m_holiday',[]);
+    $firstParts=explode("-",$_SESSION['display-month']);
+    $yyyy=$firstParts[0];
+    $mm=$firstParts[1];
+    $yyyymm="{$yyyy}{$mm}";
+    $_SESSION['yyyymm']=$yyyymm;
     function createCalendar($holidays){
         $table=new dbClass();
         $weeks=['日','月','火','水','木','金','土'];
+        /* ajaxは使用しないという指定があったので、国民の祝日APIを使用*/
+        $apiUrl = "https://holidays-jp.github.io/api/v1/date.json";
+        $json = @file_get_contents($apiUrl);
+        $nationalHolidays = json_decode($json, true);
         $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
         $firstWeekDay=date('w',strtotime($_SESSION['display-month'].'-01'));
         $firstParts=explode("-",$_SESSION['display-month']);
@@ -52,6 +51,10 @@
                         FROM t_attendance_head
                         WHERE  employee_id=:employee_id and yyyymm=:yyyymm"
                         ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$yyyymm]);
+
+        foreach($attendanceHeads as $attendanceHead){
+                $_SESSION['head_id']=$attendanceHead['id'];
+        }
         if(empty($attendanceHeads)){
             $CalendarElement=
             "<table class='table mt-2'>
@@ -86,19 +89,22 @@
                         $holidayValue=$holidayRow['holiday_name'];
                     }
                 }
-                /* テキストボックスの行数を計算 */
+                if(isset($nationalHolidays[$fullDate])){
+                    $holidayValue=$nationalHolidays[$fullDate];
+                }
+                /* テキストエリアの行数を計算 */
                 $len=floor(mb_strlen($holidayValue)/20)+1;
                 if($date==6){
                     $colorClass = 'bg-primary-subtle text-primary';
                 }
-                if($date==0 || $holiday){
+                if($date==0 || $holiday || isset($nationalHolidays[$fullDate])){
                     $colorClass = 'bg-danger-subtle text-danger';
                 }
                 $CalendarElement.="<input type='hidden' class='$colorClass' name='day[]' value={$w}>";
                 $CalendarElement .= "<tr>";
                 $CalendarElement .= "<td class='$colorClass' scope='row'>$w</td>";
                 $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
-                if ($date === 0 || $date === 6 || $holiday) {
+                if ($date === 0 || $date === 6 || $holiday ||isset($nationalHolidays[$fullDate])) {
                     $CalendarElement .= "<td class='$colorClass'>
                                             <label>
                                                 <select class='select1a form-select' name='kbn[]' readonly>
@@ -246,7 +252,6 @@
                 $attendanceDetails=$table->select("SELECT * FROM t_attendance_detail WHERE head_id=:head_id and day=:day",['head_id'=>$_SESSION['head_id'],'day'=>$w]);
                 foreach($attendanceDetails as $detail){
                     $holiday=false;
-                    $holidayValue='';
                     $day='0'.$w;
                     $colorClass="";
                     $date=($firstWeekDay+$w-1)%7;
@@ -259,8 +264,11 @@
                     foreach($holidays as $holidayRow){
                         if($fullDate==$holidayRow['yyyymmdd']){
                             $holiday=true;
-                            $holidayValue=$holidayRow['holiday_name'];
+                            $remarks=$holidayRow['holiday_name'];
                         }
+                    }
+                    if(isset($nationalHolidays[$fullDate])){
+                        $remarks=$nationalHolidays[$fullDate];
                     }
                     if($detail['kbn']==1){
                         $selected1='selected';
@@ -348,14 +356,14 @@
                     if((int)$detail['kbn']!==1 && (int)$detail['kbn']!==4 && $date==6){
                         $colorClass = 'bg-primary-subtle text-primary';
                     }
-                    if((int)$detail['kbn']!==1 && (int)$detail['kbn']!==4 && ($date==0 || $holiday)){
+                    if((int)$detail['kbn']!==1 && (int)$detail['kbn']!==4 && ($date==0 || $holiday || isset($nationalHolidays[$fullDate]))){
                         $colorClass = 'bg-danger-subtle text-danger';
                     }
                     $CalendarElement.="<input type='hidden' name='day[]' value={$detail['day']}>";
                     $CalendarElement .= "<tr>";
                     $CalendarElement .= "<td class='$colorClass' scope='row'>$w</td>";
                     $CalendarElement .= "<td class='$colorClass'>$weeks[$date]</td>";
-                    if ($date === 0 || $date === 6 || $holiday) {
+                    if ($date === 0 || $date === 6 || $holiday || isset($nationalHolidays[$fullDate])) {
                         $CalendarElement .= "<td class='$colorClass'>
                                                 <label>
                                                     <select class='select1a form-select' name='kbn[]' value={$detail['kbn']} {$readonly} {$disabled}>
@@ -594,6 +602,11 @@
                                 WHERE employee_id=:employee_id and yyyymm=:yyyymm'
                                 ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
             
+            if(isset($_POST['displayBtn'])){
+                if($_SESSION['display-month']==''){
+                    echo $error->alert('alert-danger','年月が選択されていません');
+                }
+            }
             if(isset($_POST['saveBtn'])){
                 echo $error->alert('alert-primary',"保存が完了しました。");
                 /* 休憩時間を秒に直す関数 */
@@ -670,9 +683,9 @@
                     }
                     /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
                     $attendanceHeads=$table->select('SELECT * 
-                FROM t_attendance_head 
-                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
-                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                    FROM t_attendance_head 
+                    WHERE employee_id=:employee_id and yyyymm=:yyyymm'
+                    ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
                 }
                 else{
                     try{
@@ -839,19 +852,7 @@
                                 </thead>
                                 <tbody>
                                     <?php 
-                                    $page=1;
-                                    if(isset($_GET['page'])){
-                                        if(is_numeric($_GET['page'])){
-                                            $page=(int)$_GET['page'];
-                                        }
-                                    }
-                                    else{
-                                        $page=1;
-                                    }
-                                    $offset=5*($page-1);
-                                    #urlを作ることでページネイションのボタンを押したときに検索されたものが表示されるようにしている。
-                                    $rows=$table->select("SELECT * FROM t_attendance_head WHERE employee_id=:employee_id and reject_comment is not null ORDER BY id LIMIT 5 OFFSET $offset",['employee_id'=>$_SESSION['id']]);
-                                    $lengths=$table->select("SELECT count(id) FROM t_attendance_head WHERE employee_id=:employee_id and NOT reject_comment=null",['employee_id'=>$_SESSION['id']]);
+                                    $rows=$table->select("SELECT * FROM t_attendance_head WHERE employee_id=:employee_id and reject_comment is not null ",['employee_id'=>$_SESSION['id']]);
                                     ?>
                                     
                                     <?php foreach($rows as $row):?>
@@ -875,7 +876,7 @@
                     <div class="card-body">
                         <label for="date">年月:</label>
                         <div class="input-group w-25">
-                            <input type="month" id="month-post" name="month-post" class="form-control" value="<?php if(isset($_POST['month-post']) || isset($_POST['saveBtn']) || isset($_POST['appModalBtn'])){echo $_SESSION['display-month'];}else{echo $firstValue;}?>">
+                            <input type="month" id="month-post" name="month-post" class="form-control" value="<?php echo $_SESSION['display-month'];?>">
                         </div>
                         <div class="m-2 d-flex justify-content-end">
                             <input class="btn btn-info" id="displayBtn" name="displayBtn" type="submit" value="表示">
@@ -890,23 +891,13 @@
                     </div>
                     <div class="card-body container">
                         <div class="m-2 d-flex justify-content-end gap-2">
-                            <input class="btn btn-primary" id="saveBtn" name="saveBtn" type="submit" value="保存" <?php foreach($attendanceHeads as $attendanceHead){if($attendanceHead['status']==1){echo 'disabled';}}?>>
+                            <input class="btn btn-primary" id="saveBtn" name="saveBtn" type="submit" value="保存" <?php foreach($attendanceHeads as $attendanceHead){if($attendanceHead['status']==1 || $attendanceHead['status']==3){echo 'disabled';}}?>>
                             <button class="btn  btn-success" id="appBtn" name="appBtn" type="button" data-bs-toggle="modal"
-                                data-bs-target="#appModal" <?php foreach($attendanceHeads as $attendanceHead){if($attendanceHead['status']==1){echo 'disabled';}}?>>申請</button>
+                                data-bs-target="#appModal" <?php foreach($attendanceHeads as $attendanceHead){if($attendanceHead['status']==1 || $attendanceHead['status']==3){echo 'disabled';}}?>>申請</button>
                         </div>
                         <div id="calendar" class="mt-2">
                             <?php
-                            if(isset($_POST['displayBtn'])){
-                                if($_SESSION['display-month']!==''){
-                                    echo createCalendar($holidays);
-                                }
-                            }
-                            ?>
-                            <?php
-                            if(isset($_POST['saveBtn'])){
-                                echo createCalendar($holidays);
-                            }
-                            if(isset($_POST['appModalBtn'])){
+                            if($_SESSION['display-month']!==''){
                                 echo createCalendar($holidays);
                             }
                             ?>

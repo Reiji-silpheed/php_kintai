@@ -171,11 +171,11 @@ if(isset($_POST['delModalBtn'])){
                         <div class="row">
                             <div class="col-4">
                                 <label class="form-label">日付:</label>
-                                <input type="date" class="form-control" name="holidayDate" value='<?php if(isset($_GET['holidayDate'])){if($_SESSION['holidayDate']!==''){echo $_SESSION['holidayDate'];}else{echo '';}}?>'>
+                                <input type="date" class="form-control" name="holidayDate" value='<?php if(isset($_GET['holidayDate'])){echo $_SESSION['holidayDate'];}else{echo '';}?>'>
                             </div>
                             <div class="col-4">
                                 <label class="form-label">祝日名:</label>
-                                <input type="text" class="form-control" name="holidayName" value='<?php if(isset($_GET['holidayName'])){if($_SESSION['holidayName']!==''){echo $_SESSION['holidayName'];}else{echo '';}}?>'>
+                                <input type="text" class="form-control" name="holidayName" value='<?php if(isset($_GET['holidayName'])){echo $_SESSION['holidayName'];}else{echo '';}?>'>
                             </div>
                         </div>
                         <div class="container">
@@ -238,8 +238,8 @@ if(isset($_POST['delModalBtn'])){
                                 }
                                 $url.="holidayDate={$_GET['holidayDate']}";
                                 if(!empty($_GET['holidayName'])){
-                                    $list[]='holiday_name=:holiday_name';
-                                    $param['holiday_name']=$_GET['holidayName'];
+                                    $list[]='holiday_name LIKE :holiday_name';
+                                    $param['holiday_name']="%{$_GET['holidayName']}%";
                                 }
                                 $url.="&holidayName={$_GET['holidayName']}";
                                 if(!empty($list)){
@@ -318,13 +318,13 @@ if(isset($_POST['delModalBtn'])){
                         <div class="row">
                             <div class="col-4">
                                 <label class="form-label">日付:</label>
-                                <input type="date" class="form-control <?php echo $error->invalid('newHolidayDate');?>" name="newHolidayDate" value='<?php if(isset($_POST['newHolidayDate'])){if($_SESSION['newHolidayDate']!==''){echo $_SESSION['newHolidayDate'];}else{echo '';}}?>'>
+                                <input type="date" class="form-control <?php echo $error->invalid('newHolidayDate');?>" name="newHolidayDate" value='<?php if(isset($_POST['newModalBtn'])){if($_SESSION['newHolidayDate']!==''){echo $_SESSION['newHolidayDate'];}else{echo '';}}?>'>
                                 <?php echo $error->getError('newHolidayDate');?>
                             </div>
                             
                             <div class="col-4">
                                 <label class="form-label">祝日名:</label>
-                                <input type="text" class="form-control <?php echo $error->invalid('newHolidayName');?>" name="newHolidayName" value='<?php if(isset($_POST['newholidayName'])){if($_SESSION['newHolidayName']!==''){echo $_SESSION['newHolidayName'];}else{echo '';}}?>'>
+                                <input type="text" class="form-control <?php echo $error->invalid('newHolidayName');?>" name="newHolidayName" value='<?php if(isset($_POST['newModalBtn'])){if($_SESSION['newHolidayName']!==''){echo $_SESSION['newHolidayName'];}else{echo '';}}?>'>
                                 <?php echo $error->getError('newHolidayName');?>
                             </div>
                         </div>
@@ -375,7 +375,7 @@ if(isset($_POST['delModalBtn'])){
                             
                             <div class="col-4">
                                 <label class="form-label">祝日名:</label>
-                                <input type="text" class="form-control <?php echo $error->invalid('updateHolidayName');?>" id="updateHolidayName" name="updateHolidayName" value='<?php if(isset($_POST['updateholidayName'])){if($_SESSION['updateHolidayName']!==''){echo $_SESSION['updateHolidayName'];}else{echo '';}}?>'>
+                                <input type="text" class="form-control <?php echo $error->invalid('updateHolidayName');?>" id="updateHolidayName" name="updateHolidayName" value='<?php if(isset($_POST['updateHolidayName'])){if($_SESSION['updateHolidayName']!==''){echo $_SESSION['updateHolidayName'];}else{echo '';}}?>'>
                                 <?php echo $error->getError('updateHolidayName');?>
                             </div>
                             <input type="hidden" id="radio-update-id" name="radio-update-id" value="<?php if(isset($_POST['radio-update-id'])){echo $_SESSION['radio-update-id'];}else{echo '';}?>">

@@ -283,9 +283,11 @@ if(isset($_POST['excelModalBtn'])){
         header('Content-Length: ' . filesize($zipFile));
         readfile($zipFile);
 
-        unlink($excelPath);
-        unlink($zipPath);
-        rmdir($tempDir);
+        /* サーバ上に作成されたzipファイルを削除 */
+       foreach ($fileNames as $file) {
+            unlink($file);
+        }
+        unlink($zipFile);
         exit;
     }
 }
@@ -544,6 +546,7 @@ if(isset($_POST['pdfModalBtn'])){
                 header("Content-Disposition: attachment; filename={$pdfCheck['yyyymm']}_{$pdfCheck['employee_name']}.pdf");
                 header('Content-Length: ' . filesize($generatedPdfPath));
                 readfile($generatedPdfPath);
+                exit;
             }
         }
     }
@@ -565,9 +568,11 @@ if(isset($_POST['pdfModalBtn'])){
         header('Content-Length: ' . filesize($zipFile));
         readfile($zipFile);
 
-        unlink($excelPath);
-        unlink($zipPath);
-        rmdir($tempDir);
+        /* サーバ上に作成されたzipファイルを削除 */
+        foreach ($fileNames as $file) {
+            unlink($file);
+        }
+        unlink($zipFile);
         exit;
     }
 }
@@ -712,58 +717,17 @@ if(isset($_POST['pdfModalBtn'])){
     $sql="SELECT *,t_attendance_head.id AS head_id FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
     $where='';
     $url='?';
+    /* 初期状態で今月の勤怠を表示させるため */
+    $_SESSION['searchDate']=$date->format('Y-m');
     $_SESSION['management_url']=$url;
+    $_SESSION['searchStatus']='';
     $list=[];
     $param=[];
     if(isset($_GET['searchBtn'])){
         $_SESSION['searchDate']=$_GET['searchDate'];
-        if($_GET['searchDate']!==''){
-            $firstParts=explode("-",$_GET['searchDate']);
-            $yyyy=$firstParts[0];
-            $mm=$firstParts[1];
-            $yyyymm="{$yyyy}{$mm}";
-        }
-        $url.="searchDate={$_GET['searchDate']}";
         $_SESSION['searchNumber']=$_GET['searchNumber'];
         $_SESSION['searchName']=$_GET['searchName'];
-        if(!empty($_GET['searchDate'])){
-            $list[]='yyyymm=:yyyymm';
-            $param['yyyymm']=$yyyymm;
-        }
-        $url.="&searchNumber={$_GET['searchNumber']}";
-        if(!empty($_GET['searchNumber'])){
-            $list[]='employee_no=:employee_no';
-            $param['employee_no']=$_GET['searchNumber'];
-        }
-        $url.="&searchName={$_GET['searchName']}";
-        if(!empty($_GET['searchName'])){
-            $list[]='employee_name=:employee_name';
-            $param['employee_name']=$_GET['searchName'];
-        }
-        if($_GET['searchStatus']!==''){
-            $list[]='status=:status';
-            $param['status']=$_GET['searchStatus'];
-        }
-        $url.="&searchStatus={$_GET['searchStatus']}";
-        $url.="&searchBtn=検索";
-        $_SESSION['management_url']=$url;
-        if($_GET['searchStatus']==0){
-            $select0='selected';
-        }
-        if($_GET['searchStatus']==1){
-            $select1='selected';
-        }
-        if($_GET['searchStatus']==2){
-            $select2='selected';
-        }
-        if($_GET['searchStatus']==3){
-            $select3='selected';
-        }
-        if(!empty($list)){
-            $where=implode(' and ',$list);
-            $sql.=" WHERE {$where}";
-        }
-        $rows=$table->select($sql,$param);
+        $_SESSION['searchStatus']=$_GET['searchStatus'];
     }
     if(isset($_GET['cBtn'])){
         $select='';
@@ -773,6 +737,50 @@ if(isset($_POST['pdfModalBtn'])){
         $_SESSION['searchStatus']='';
         $_SESSION['management_url']=$url;
     }
+    if($_SESSION['searchDate']!==''){
+        $firstParts=explode("-",$_SESSION['searchDate']);
+        $yyyy=$firstParts[0];
+        $mm=$firstParts[1];
+        $yyyymm="{$yyyy}{$mm}";
+        $list[]='yyyymm=:yyyymm';
+        $param['yyyymm']=$yyyymm;
+    }
+    $url.="searchDate={$_SESSION['searchDate']}";
+    if(!empty($_SESSION['searchNumber'])){
+        $list[]='employee_no=:employee_no';
+        $param['employee_no']=$_SESSION['searchNumber'];
+    }
+    $url.="&searchNumber={$_SESSION['searchNumber']}";
+    if(!empty($_SESSION['searchName'])){
+        $list[]='employee_name LIKE :employee_name';
+        $param['employee_name']="%{$_SESSION['searchName']}%";
+    }
+    $url.="&searchName={$_SESSION['searchName']}";
+    if($_SESSION['searchStatus']!==''){
+        $list[]='status=:status';
+        $param['status']=$_SESSION['searchStatus'];
+    }
+    $url.="&searchStatus={$_SESSION['searchStatus']}";
+    $url.="&searchBtn=検索";
+    if($_SESSION['searchStatus']==0){
+        $select0='selected';
+    }
+    if($_SESSION['searchStatus']==1){
+        $select1='selected';
+    }
+    if($_SESSION['searchStatus']==2){
+        $select2='selected';
+    }
+    if($_SESSION['searchStatus']==3){
+        $select3='selected';
+    }
+    if(!empty($list)){
+        $where=implode(' and ',$list);
+        $sql.=" WHERE {$where}";
+    }
+    $rows=$table->select($sql,$param);
+    $_SESSION['management_url']=$url;
+    
     ?>
     <main>
         <div class="container">
@@ -879,7 +887,7 @@ if(isset($_POST['pdfModalBtn'])){
                             <div class="row">
                                 <div class="col-3">
                                     <label class="form-label">年月:</label>
-                                    <input type="month" class="form-control" name="searchDate" value="<?php if(isset($_GET['searchDate'])){echo $_SESSION['searchDate'];}else{echo $date->format('Y-m');}?>">
+                                    <input type="month" class="form-control" name="searchDate" value="<?php echo $_SESSION['searchDate'];?>">
                                 </div>
                                 <div class="col-3">
                                     <label class="form-label">社員番号:</label>

@@ -21,8 +21,8 @@ class login extends dbClass{
                 $param['employee_no']=$_GET['number-search-get'];
             }
             if(!empty($_GET['name-search-get'])){
-                $list[]='employee_name=:employee_name';
-                $param['employee_name']=$_GET['name-search-get'];
+                $list[]="employee_name LIKE :employee_name";
+                $param['employee_name']="%{$_GET['name-search-get']}%";
             }
             if(!empty($_GET['mail-search-get'])){
                 $list[]='email=:email';
@@ -56,8 +56,8 @@ class login extends dbClass{
                 $param['yyyymmdd']=$_GET['holidayDate'];
             }
             if(!empty($_GET['holidayName'])){
-                $list[]='holiday_name=:holiday_name';
-                $param['holiday_name']=$_GET['holidayName'];
+                $list[]='holiday_name LIKE :holiday_name';
+                $param['holiday_name']="%{$_GET['holidayName']}%";
             }
             if(!empty($list)){
                 $where=implode(' and ',$list);

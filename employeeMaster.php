@@ -372,7 +372,7 @@ if(isset($_POST['delModalBtn'])){
                                             $rows=$table->select("SELECT * FROM m_employee ORDER BY id LIMIT 5 OFFSET $offset",[]);
                                         }
                                         else{
-                                            $rows=$table->select("SELECT * FROM m_employee WHERE employee_no=:employee_no and employee_name=:employee_name and email=:email and start_date=:start_date",['employee_no'=>$_POST['number-new-post'],'employee_name'=>$_POST['name-new-post'],'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post']]);
+                                            $rows=$table->select("SELECT * FROM m_employee WHERE employee_no=:employee_no and employee_name LIKE :employee_name and email=:email and start_date=:start_date",['employee_no'=>$_POST['number-new-post'],'employee_name'=>"%{$_POST['name-new-post']}%",'email'=>$_POST['mail-new-post'],'start_date'=>$_POST['calendar-new-post']]);
                                         }
                                         if(isset($_GET['searchBtn'])){
                                             if(!empty($_GET['number-search-get'])){
@@ -381,8 +381,8 @@ if(isset($_POST['delModalBtn'])){
                                             }
                                             $url.="number-search-get={$_GET['number-search-get']}";
                                             if(!empty($_GET['name-search-get'])){
-                                                $list[]='employee_name=:employee_name';
-                                                $param['employee_name']=$_GET['name-search-get'];
+                                                $list[]='employee_name LIKE :employee_name';
+                                                $param['employee_name']="%{$_GET['name-search-get']}%";
                                             }
                                             $url.="&name-search-get={$_GET['name-search-get']}";
                                             if(!empty($_GET['mail-search-get'])){
