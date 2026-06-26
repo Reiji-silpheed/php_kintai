@@ -1,15 +1,4 @@
-<head>
-    <meta http-equiv="content-type" charset="utf-8" />
-    <!-- ①：Bootstrapで使うCSSを読み込む -->
-    <link href="/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-    <!-- ②：BootstrapとjQueryで使うJavascriptを読み込む -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
-        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <link rel="stylesheet" href="./style.css">
-    <title>勤怠管理</title>
-    
-    <?php
+<?php
     require_once './messageClass.php';
     require_once './dbClass.php';
     require_once './loginClass.php';
@@ -20,20 +9,38 @@
     $login=new login();
     session_start();
     $firstValue=$firstDate->format('Y-m');
-    $_SESSION['display-month']=$firstValue;
     if($_SESSION['mail']==""){
         header('Location:./login.php');
     } 
     if(isset($_POST['displayBtn'])){
         $_SESSION['display-month']=$_POST['month-post'];
     }
-    
+    /* 初期状態のときに今月の勤怠を検索するようにする */
+    if(!isset($_POST['displayBtn']) && !isset($_POST['saveBtn']) && !isset($_POST['appModalBtn'])){
+        $_SESSION['display-month']=$firstValue;
+    }
     $holidays=$table->select('SELECT * FROM m_holiday',[]);
     $firstParts=explode("-",$_SESSION['display-month']);
     $yyyy=$firstParts[0];
     $mm=$firstParts[1];
     $yyyymm="{$yyyy}{$mm}";
     $_SESSION['yyyymm']=$yyyymm;
+    /* 表示されている年月のステータスを確認 */
+    $attendanceHeads=$table->select('SELECT * 
+                                FROM t_attendance_head 
+                                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
+                                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+    /* 時間を秒に変換する関数 */
+    function timeToSeconds($rest){
+        if(empty($rest)){
+            return 0;
+        }
+        else{
+            $list=explode(":",$rest);
+            return (int)$list[0]*3600+(int)$list[1]*60;
+        }
+    } 
+    /* カレンダーを表示する関数 */
     function createCalendar($holidays){
         $table=new dbClass();
         $weeks=['日','月','火','水','木','金','土'];
@@ -465,61 +472,214 @@
             return $CalendarElement;        
         }        
     }
-    ?> 
-    <script>
-        $(function () {
-            $(document).on("change", ".select1a", function () {
-                var selectedClass = $(this).find('option:selected').attr('class');
-                let row = $(this).closest("tr");
-                if (selectedClass === "holiday") {
-                    row.find("#startWork").val('');
-                    row.find("#finishWork").val('');
-                    row.find("#lunch").val('');
-                    row.find("#dinner").val('');
-                    row.find("#work_time").val("");
-                    row.find("#over_time").val("");
-                    row.find("#startWork").prop("readonly", true);
-                    row.find("#finishWork").prop("readonly", true);
-                    row.find("#lunch").prop("readonly", true);
-                    row.find("#dinner").prop("readonly", true);
-                    row.find("#work_time").prop("readonly", true);
-                    row.find("#over_time").prop("readonly", true);
-                    row.find("td").removeClass();
-                    row.find("td").addClass("bg-danger-subtle text-danger");
-                } else {
-                    row.find("#startWork").val("09:00");
-                    row.find("#finishWork").val("18:00");
-                    row.find("#lunch").val("01:00");
-                    row.find("#dinner").val("00:00");
-                    row.find("#work_time").val("08:00");
-                    row.find("#over_time").val("00:00");
-                    row.find("#startWork").prop("readonly", false);
-                    row.find("#finishWork").prop("readonly", false);
-                    row.find("#lunch").prop("readonly", false);
-                    row.find("#dinner").prop("readonly", false);
-                    row.find("#work_time").prop("readonly", false);
-                    row.find("#over_time").prop("readonly", false);
-                    row.find("td").removeClass();
+    /* 保存ボタンを押したときの処理 */
+    if (isset($_POST['saveBtn'])) {
+        $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
+        $day=[];
+        foreach($_POST['day'] as $value){
+            $day[]=$value;
+        }
+        $kbn=[];
+        foreach($_POST['kbn'] as $value){
+            $kbn[]=$value;
+        }
+        $start_time=[];
+        foreach($_POST['start'] as $value){
+            $start_time[]=$value;
+        }
+        $end_time=[];
+        foreach($_POST['end'] as $value){
+            $end_time[]=$value;
+        }
+        $rest_time=[];
+        foreach($_POST['lunch'] as $value){
+            $rest_time[]=$value;
+        }
+        $night_rest_time=[];
+        foreach($_POST['dinner'] as $value){
+            $night_rest_time[]=$value;
+        }
+        $remarks=[];
+        foreach($_POST['text'] as $value){
+            $remarks[]=$value;
+        }
+        $work_time=[];
+        $over_time=[];
+        $operation=[];
+        if(empty($attendanceHeads)){
+            try{
+                $table->begin();
+                $table->dbAccess('INSERT INTO t_attendance_head (employee_id,yyyymm,status) VALUES(:employee_id,:yyyymm,0)',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                $head_ids=$table->select('SELECT * FROM t_attendance_head WHERE employee_id=:employee_id',['employee_id'=>$_SESSION['id']]);
+                foreach($head_ids as $head_id){
+                    $_SESSION['head_id']=$head_id['id'];
                 }
-            })
-            $(document).on("click","#displayBtn",function(){
-                $("#alert").remove();
-            })
-            $(document).on("click","#saveBtn",function(){
-                $("#alert").remove();
-            })
-            $(document).on("click","#appBtn",function(){
-                $('#alert').remove();
-            })
-            /* 申請ボタン */
-            $(document).on("click", "#appModalBtn", function () {
-                $("#alert").remove();
-                $("#appModal").modal("hide");
-            })
-            
-        })
+                for($i=0;$i<$lastDateOfMonth;$i++){
+                    /* 稼働時間を秒にして計算 */
+                    $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
+                    /* 稼働時間を秒から時間に変換 */
+                    $operation[]=gmdate('H:i:s',$work_time[$i]);
+                    if($work_time[$i]>28800){
+                        $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
+                    }
+                    else{
+                        $over_time[$i]='00:00';
+                    }
+                    $table->dbAccess('INSERT INTO t_attendance_detail 
+                    (head_id,day,kbn,start_time,end_time,rest_time,night_rest_time,work_time,over_time,remarks)
+                    VALUES(:head_id,:day,:kbn,:start_time,:end_time,:rest_time,:night_rest_time,:work_time,:over_time,:remarks)'
+                    ,['head_id'=>$_SESSION['head_id'],'day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'remarks'=>$remarks[$i]]);
+                }
+                $table->commit();
+                }
+            catch(Exception $ex){
+                $table->rollback();
+                exit();
+            }
+            /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
+            $attendanceHeads=$table->select('SELECT * 
+            FROM t_attendance_head 
+            WHERE employee_id=:employee_id and yyyymm=:yyyymm'
+            ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+        }
+        else{
+            try{
+                $table->begin();
+                $table->dbAccess('UPDATE t_attendance_head SET status=0 WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                for($i=0;$i<$lastDateOfMonth;$i++){
+                    $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
+                    $operation[]=gmdate('H:i:s',$work_time[$i]);
+                    if($work_time[$i]>28800){
+                        $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
+                    }
+                    else{
+                        $over_time[$i]='00:00:00';
+                    }
+                    $table->dbAccess('UPDATE t_attendance_detail
+                    set kbn=:kbn,start_time=:start_time,end_time=:end_time,rest_time=:rest_time,night_rest_time=:night_rest_time,work_time=:work_time,over_time=:over_time,remarks=:remarks
+                    WHERE head_id=:head_id and day=:day;'
+                    ,['day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'remarks'=>$remarks[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'head_id'=>$_SESSION['head_id']]);
+                }
+                $table->commit();
+            }
+            catch(Exception $ex){
+                $table->rollback();
+                exit();
+            }
+        }
+    }
+    /* 申請ボタンを押したときの処理 */
+    if (isset($_POST['appModalBtn'])) {
+        $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
+        $day=[];
+        foreach($_POST['day'] as $value){
+            $day[]=$value;
+        }
+        $kbn=[];
+        foreach($_POST['kbn'] as $value){
+            $kbn[]=$value;
+        }
+        $start_time=[];
+        foreach($_POST['start'] as $value){
+            $start_time[]=$value;
+        }
+        $end_time=[];
+        foreach($_POST['end'] as $value){
+            $end_time[]=$value;
+        }
+        $rest_time=[];
+        foreach($_POST['lunch'] as $value){
+            $rest_time[]=$value;
+        }
+        $night_rest_time=[];
+        foreach($_POST['dinner'] as $value){
+            $night_rest_time[]=$value;
+        }
+        $remarks=[];
+        foreach($_POST['text'] as $value){
+            $remarks[]=$value;
+        }
+        $work_time=[];
+        $operation=[];
+        $over_time=[];
+        if(empty($attendanceHeads)){
+            try{
+                $table->begin();
+                $table->dbAccess('INSERT INTO t_attendance_head (employee_id,yyyymm,status) VALUES(:employee_id,:yyyymm,1)',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                $head_ids=$table->select('SELECT * FROM t_attendance_head WHERE employee_id=:employee_id',['employee_id'=>$_SESSION['id']]);
+                foreach($head_ids as $head_id){
+                    $_SESSION['head_id']=$head_id['id'];
+                }
+                for($i=0;$i<$lastDateOfMonth;$i++){
+                    $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
+                    $operation[]=gmdate('H:i:s',$work_time[$i]);
+                    if($work_time[$i]>28800){
+                        $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
+                    }
+                    else{
+                        $over_time[$i]='00:00';
+                    }
+                    $table->dbAccess('INSERT INTO t_attendance_detail 
+                    (head_id,day,kbn,start_time,end_time,rest_time,night_rest_time,work_time,over_time,remarks)
+                    VALUES(:head_id,:day,:kbn,:start_time,:end_time,:rest_time,:night_rest_time,:work_time,:over_time,:remarks)'
+                    ,['head_id'=>$_SESSION['head_id'],'day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'remarks'=>$remarks[$i]]);
+                }
+                $table->commit();
+                }
+            catch(Exception $ex){
+                $table->rollback();
+                exit();
+            }
+            /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
+            $attendanceHeads=$table->select('SELECT * 
+            FROM t_attendance_head 
+            WHERE employee_id=:employee_id and yyyymm=:yyyymm'
+            ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+        }
+        else{
+            try{
+                $table->begin();
+                $table->dbAccess('UPDATE t_attendance_head SET status=1,reject_comment=null WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
+                for($i=0;$i<$lastDateOfMonth;$i++){
+                    $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
+                    $operation[]=gmdate('H:i:s',$work_time[$i]);
+                    if($work_time[$i]>28800){
+                        $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
+                    }
+                    else{
+                        $over_time[$i]='00:00:00';
+                    }
+                    $table->dbAccess('UPDATE t_attendance_detail
+                    set kbn=:kbn,start_time=:start_time,end_time=:end_time,rest_time=:rest_time,night_rest_time=:night_rest_time,work_time=:work_time,over_time=:over_time,remarks=:remarks
+                    WHERE head_id=:head_id and day=:day;'
+                    ,['day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'remarks'=>$remarks[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'head_id'=>$_SESSION['head_id']]);
+                }
+                $table->commit();
+            }
+            catch(Exception $ex){
+                $table->rollback();
+                exit();
+            }
+            catch(Exception $ex){
+                $table->rollback();
+                exit();
+            }
+        }
+    }
+    /* 差戻理由が書いてあるかチェック */
+    $rows=$table->select("SELECT * FROM t_attendance_head WHERE employee_id=:employee_id and reject_comment is not null",["employee_id"=>$_SESSION['id']]);
+    ?> 
 
-    </script>
+<head>
+    <meta http-equiv="content-type" charset="utf-8" />
+    <!-- ①：Bootstrapで使うCSSを読み込む -->
+    <link href="/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <!-- ②：BootstrapとjQueryで使うJavascriptを読み込む -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="./style.css">
+    <title>勤怠管理</title>
 </head>
 
 
@@ -597,11 +757,6 @@
         <div class="container">
             <h1>勤怠入力</h1>
             <?php
-            $attendanceHeads=$table->select('SELECT * 
-                                FROM t_attendance_head 
-                                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
-                                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-            
             if(isset($_POST['displayBtn'])){
                 if($_SESSION['display-month']==''){
                     echo $error->alert('alert-danger','年月が選択されていません');
@@ -609,231 +764,12 @@
             }
             if(isset($_POST['saveBtn'])){
                 echo $error->alert('alert-primary',"保存が完了しました。");
-                /* 休憩時間を秒に直す関数 */
-                function timeToSeconds($rest){
-                    if(empty($rest)){
-                        return 0;
-                    }
-                    else{
-                        $list=explode(":",$rest);
-                        return (int)$list[0]*3600+(int)$list[1]*60;
-                    }
-                }                                
-                $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
-                $day=[];
-                foreach($_POST['day'] as $value){
-                    $day[]=$value;
-                }
-                $kbn=[];
-                foreach($_POST['kbn'] as $value){
-                    $kbn[]=$value;
-                }
-                $start_time=[];
-                foreach($_POST['start'] as $value){
-                    $start_time[]=$value;
-                }
-                $end_time=[];
-                foreach($_POST['end'] as $value){
-                    $end_time[]=$value;
-                }
-                $rest_time=[];
-                foreach($_POST['lunch'] as $value){
-                    $rest_time[]=$value;
-                }
-                $night_rest_time=[];
-                foreach($_POST['dinner'] as $value){
-                    $night_rest_time[]=$value;
-                }
-                $remarks=[];
-                foreach($_POST['text'] as $value){
-                    $remarks[]=$value;
-                }
-                $work_time=[];
-                $over_time=[];
-                $operation=[];
-                if(empty($attendanceHeads)){
-                    try{
-                        $table->begin();
-                        $table->dbAccess('INSERT INTO t_attendance_head (employee_id,yyyymm,status) VALUES(:employee_id,:yyyymm,0)',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-                        $head_ids=$table->select('SELECT * FROM t_attendance_head WHERE employee_id=:employee_id',['employee_id'=>$_SESSION['id']]);
-                        foreach($head_ids as $head_id){
-                            $_SESSION['head_id']=$head_id['id'];
-                        }
-                        for($i=0;$i<$lastDateOfMonth;$i++){
-                            /* 稼働時間を秒にして計算 */
-                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
-                            /* 稼働時間を秒から時間に変換 */
-                            $operation[]=gmdate('H:i:s',$work_time[$i]);
-                            if($work_time[$i]>28800){
-                                $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
-                            }
-                            else{
-                                $over_time[$i]='00:00';
-                            }
-                            $table->dbAccess('INSERT INTO t_attendance_detail 
-                            (head_id,day,kbn,start_time,end_time,rest_time,night_rest_time,work_time,over_time,remarks)
-                            VALUES(:head_id,:day,:kbn,:start_time,:end_time,:rest_time,:night_rest_time,:work_time,:over_time,:remarks)'
-                            ,['head_id'=>$_SESSION['head_id'],'day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'remarks'=>$remarks[$i]]);
-                        }
-                        $table->commit();
-                        }
-                    catch(Exception $ex){
-                        $table->rollback();
-                        exit();
-                    }
-                    /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
-                    $attendanceHeads=$table->select('SELECT * 
-                    FROM t_attendance_head 
-                    WHERE employee_id=:employee_id and yyyymm=:yyyymm'
-                    ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-                }
-                else{
-                    try{
-                        $table->begin();
-                        $table->dbAccess('UPDATE t_attendance_head SET status=0 WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-                        for($i=0;$i<$lastDateOfMonth;$i++){
-                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
-                            $operation[]=gmdate('H:i:s',$work_time[$i]);
-                            if($work_time[$i]>28800){
-                                $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
-                            }
-                            else{
-                                $over_time[$i]='00:00:00';
-                            }
-                            $table->dbAccess('UPDATE t_attendance_detail
-                            set kbn=:kbn,start_time=:start_time,end_time=:end_time,rest_time=:rest_time,night_rest_time=:night_rest_time,work_time=:work_time,over_time=:over_time,remarks=:remarks
-                            WHERE head_id=:head_id and day=:day;'
-                            ,['day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'remarks'=>$remarks[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'head_id'=>$_SESSION['head_id']]);
-                        }
-                        $table->commit();
-                    }
-                    catch(Exception $ex){
-                        $table->rollback();
-                        exit();
-                    }
-                }
-                /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
-                $attendanceHeads=$table->select('SELECT * 
-                FROM t_attendance_head 
-                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
-                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
             }
+                                               
+                
             if(isset($_POST['appModalBtn'])){
                 echo $error->alert('alert-success','申請が完了しました。');
-                function timeToSeconds($rest){
-                    if(empty($rest)){
-                        return 0;
-                    }
-                    else{
-                        $list=explode(":",$rest);
-                        return (int)$list[0]*3600+(int)$list[1]*60;
-                    }
-                }                                
-                $lastDateOfMonth=date('d',strtotime('last day of '.$_SESSION['display-month']));
-                $day=[];
-                foreach($_POST['day'] as $value){
-                    $day[]=$value;
-                }
-                $kbn=[];
-                foreach($_POST['kbn'] as $value){
-                    $kbn[]=$value;
-                }
-                $start_time=[];
-                foreach($_POST['start'] as $value){
-                    $start_time[]=$value;
-                }
-                $end_time=[];
-                foreach($_POST['end'] as $value){
-                    $end_time[]=$value;
-                }
-                $rest_time=[];
-                foreach($_POST['lunch'] as $value){
-                    $rest_time[]=$value;
-                }
-                $night_rest_time=[];
-                foreach($_POST['dinner'] as $value){
-                    $night_rest_time[]=$value;
-                }
-                $remarks=[];
-                foreach($_POST['text'] as $value){
-                    $remarks[]=$value;
-                }
-                $work_time=[];
-                $operation=[];
-                $over_time=[];
-                if(empty($attendanceHeads)){
-                    try{
-                        $table->begin();
-                        $table->dbAccess('INSERT INTO t_attendance_head (employee_id,yyyymm,status) VALUES(:employee_id,:yyyymm,1)',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-                        $head_ids=$table->select('SELECT * FROM t_attendance_head WHERE employee_id=:employee_id',['employee_id'=>$_SESSION['id']]);
-                        foreach($head_ids as $head_id){
-                            $_SESSION['head_id']=$head_id['id'];
-                        }
-                        for($i=0;$i<$lastDateOfMonth;$i++){
-                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
-                            $operation[]=gmdate('H:i:s',$work_time[$i]);
-                            if($work_time[$i]>28800){
-                                $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
-                            }
-                            else{
-                                $over_time[$i]='00:00';
-                            }
-                            $table->dbAccess('INSERT INTO t_attendance_detail 
-                            (head_id,day,kbn,start_time,end_time,rest_time,night_rest_time,work_time,over_time,remarks)
-                            VALUES(:head_id,:day,:kbn,:start_time,:end_time,:rest_time,:night_rest_time,:work_time,:over_time,:remarks)'
-                            ,['head_id'=>$_SESSION['head_id'],'day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'remarks'=>$remarks[$i]]);
-                        }
-                        $table->commit();
-                        }
-                    catch(Exception $ex){
-                        $table->rollback();
-                        exit();
-                    }
-                    /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
-                    $attendanceHeads=$table->select('SELECT * 
-                    FROM t_attendance_head 
-                    WHERE employee_id=:employee_id and yyyymm=:yyyymm'
-                    ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-                }
-                else{
-                    try{
-                        $table->begin();
-                        $table->dbAccess('UPDATE t_attendance_head SET status=1,reject_comment=null WHERE employee_id=:employee_id and yyyymm=:yyyymm',['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-                        for($i=0;$i<$lastDateOfMonth;$i++){
-                            $work_time[]=strtotime($end_time[$i])-strtotime($start_time[$i])-timeToSeconds($rest_time[$i])-timeToSeconds($night_rest_time[$i]);
-                            $operation[]=gmdate('H:i:s',$work_time[$i]);
-                            if($work_time[$i]>28800){
-                                $over_time[]=gmdate('H:i:s',$work_time[$i]-28800);
-                            }
-                            else{
-                                $over_time[$i]='00:00:00';
-                            }
-                            $table->dbAccess('UPDATE t_attendance_detail
-                            set kbn=:kbn,start_time=:start_time,end_time=:end_time,rest_time=:rest_time,night_rest_time=:night_rest_time,work_time=:work_time,over_time=:over_time,remarks=:remarks
-                            WHERE head_id=:head_id and day=:day;'
-                            ,['day'=>$day[$i],'kbn'=>$kbn[$i],'start_time'=>$start_time[$i],'end_time'=>$end_time[$i],'rest_time'=>$rest_time[$i],'night_rest_time'=>$night_rest_time[$i],'remarks'=>$remarks[$i],'work_time'=>$operation[$i],'over_time'=>$over_time[$i],'head_id'=>$_SESSION['head_id']]);
-                        }
-                        $table->commit();
-                    }
-                    catch(Exception $ex){
-                        $table->rollback();
-                        exit();
-                    }
-                    catch(Exception $ex){
-                        $table->rollback();
-                        exit();
-                    }
-                }
-                /* attendanceHeadsを更新することでステータスの判定間違いを防止 */
-                $attendanceHeads=$table->select('SELECT * 
-                FROM t_attendance_head 
-                WHERE employee_id=:employee_id and yyyymm=:yyyymm'
-                ,['employee_id'=>$_SESSION['id'],'yyyymm'=>$_SESSION['yyyymm']]);
-                
             }
-            ?>
-            <?php
-            $rows=$table->select("SELECT * FROM t_attendance_head WHERE employee_id=:employee_id and reject_comment is not null",["employee_id"=>$_SESSION['id']]);
             ?>
             <div class="container">
                 <div class="card mt-4" <?php if(empty($rows)){echo 'hidden';}?>>
@@ -851,10 +787,6 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php 
-                                    $rows=$table->select("SELECT * FROM t_attendance_head WHERE employee_id=:employee_id and reject_comment is not null ",['employee_id'=>$_SESSION['id']]);
-                                    ?>
-                                    
                                     <?php foreach($rows as $row):?>
                                         <tr>
                                             <td><?php echo $row['yyyymm'];?></td>
@@ -927,3 +859,58 @@
             </div><!-- /.modal -->
         </main>
     </body>
+
+    <script>
+        $(function () {
+            $(document).on("change", ".select1a", function () {
+                var selectedClass = $(this).find('option:selected').attr('class');
+                let row = $(this).closest("tr");
+                if (selectedClass === "holiday") {
+                    row.find("#startWork").val('');
+                    row.find("#finishWork").val('');
+                    row.find("#lunch").val('');
+                    row.find("#dinner").val('');
+                    row.find("#work_time").val("");
+                    row.find("#over_time").val("");
+                    row.find("#startWork").prop("readonly", true);
+                    row.find("#finishWork").prop("readonly", true);
+                    row.find("#lunch").prop("readonly", true);
+                    row.find("#dinner").prop("readonly", true);
+                    row.find("#work_time").prop("readonly", true);
+                    row.find("#over_time").prop("readonly", true);
+                    row.find("td").removeClass();
+                    row.find("td").addClass("bg-danger-subtle text-danger");
+                } else {
+                    row.find("#startWork").val("09:00");
+                    row.find("#finishWork").val("18:00");
+                    row.find("#lunch").val("01:00");
+                    row.find("#dinner").val("00:00");
+                    row.find("#work_time").val("08:00");
+                    row.find("#over_time").val("00:00");
+                    row.find("#startWork").prop("readonly", false);
+                    row.find("#finishWork").prop("readonly", false);
+                    row.find("#lunch").prop("readonly", false);
+                    row.find("#dinner").prop("readonly", false);
+                    row.find("#work_time").prop("readonly", false);
+                    row.find("#over_time").prop("readonly", false);
+                    row.find("td").removeClass();
+                }
+            })
+            $(document).on("click","#displayBtn",function(){
+                $("#alert").remove();
+            })
+            $(document).on("click","#saveBtn",function(){
+                $("#alert").remove();
+            })
+            $(document).on("click","#appBtn",function(){
+                $('#alert').remove();
+            })
+            /* 申請ボタン */
+            $(document).on("click", "#appModalBtn", function () {
+                $("#alert").remove();
+                $("#appModal").modal("hide");
+            })
+            
+        })
+
+    </script>

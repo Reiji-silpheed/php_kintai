@@ -17,7 +17,7 @@ $date=new DateTime();
 if($_SESSION['mail']==''){
     header('Location:./login.php');
 }
-
+/* Excel出力 */
 if(isset($_POST['excelModalBtn'])){
     $fileNames=[];
     $values=explode(",",$_POST['excelCheck']);
@@ -291,7 +291,7 @@ if(isset($_POST['excelModalBtn'])){
         exit;
     }
 }
-
+/* PDF出力 */
 if(isset($_POST['pdfModalBtn'])){
     $fileNames=[];
     $values=explode(",",$_POST['pdfCheck']);
@@ -576,6 +576,150 @@ if(isset($_POST['pdfModalBtn'])){
         exit;
     }
 }
+
+$select='';
+$select0='';
+$select1='';
+$select2='';
+$select3='';
+$sql="SELECT *,t_attendance_head.id AS head_id FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
+$where='';
+$url='?';
+/* 初期状態で今月の勤怠を表示させるため */
+$_SESSION['searchDate']=$date->format('Y-m');
+$_SESSION['searchNumber']='';
+$_SESSION['searchName']='';
+$_SESSION['searchStatus']='';
+$_SESSION['management_url']=$url;
+$list=[];
+$param=[];
+if(isset($_GET['searchBtn'])){
+    $_SESSION['searchDate']=$_GET['searchDate'];
+    $_SESSION['searchNumber']=$_GET['searchNumber'];
+    $_SESSION['searchName']=$_GET['searchName'];
+    $_SESSION['searchStatus']=$_GET['searchStatus'];
+}
+if(isset($_GET['cBtn'])){
+    $select='';
+    $_SESSION['searchDate']='';
+    $_SESSION['searchNumber']='';
+    $_SESSION['searchName']='';
+    $_SESSION['searchStatus']='';
+    $_SESSION['management_url']=$url;
+}
+if($_SESSION['searchDate']!==''){
+    $firstParts=explode("-",$_SESSION['searchDate']);
+    $yyyy=$firstParts[0];
+    $mm=$firstParts[1];
+    $yyyymm="{$yyyy}{$mm}";
+    $list[]='yyyymm=:yyyymm';
+    $param['yyyymm']=$yyyymm;
+}
+$url.="searchDate={$_SESSION['searchDate']}";
+if(!empty($_SESSION['searchNumber'])){
+    $list[]='employee_no=:employee_no';
+    $param['employee_no']=$_SESSION['searchNumber'];
+}
+$url.="&searchNumber={$_SESSION['searchNumber']}";
+if(!empty($_SESSION['searchName'])){
+    $list[]='employee_name LIKE :employee_name';
+    $param['employee_name']="%{$_SESSION['searchName']}%";
+}
+$url.="&searchName={$_SESSION['searchName']}";
+if($_SESSION['searchStatus']!==''){
+    $list[]='status=:status';
+    $param['status']=$_SESSION['searchStatus'];
+}
+$url.="&searchStatus={$_SESSION['searchStatus']}";
+$url.="&searchBtn=検索";
+if($_SESSION['searchStatus']==0){
+    $select0='selected';
+}
+if($_SESSION['searchStatus']==1){
+    $select1='selected';
+}
+if($_SESSION['searchStatus']==2){
+    $select2='selected';
+}
+if($_SESSION['searchStatus']==3){
+    $select3='selected';
+}
+if(!empty($list)){
+    $where=implode(' and ',$list);
+    $sql.=" WHERE {$where}";
+}
+$_SESSION['management_url']=$url;
+if(isset($_GET['page'])){
+    $_SESSION['management_url'].="&page={$_GET['page']}";
+}
+$rows=$table->select($sql,$param);
+$judgment=false;
+$tabooLists=[];
+$values=[];
+$message="";
+/* 確認処理 */
+if(isset($_POST['checkBtn'])){
+    $values=explode(",",$_POST['checks']);
+    $_SESSION['check']=$values;
+}
+/* 承認処理 */
+if(isset($_POST['approvalModalBtn'])){
+    $values=explode(",",$_POST['approvalCheck']);
+    $_SESSION['check']=$values;
+    foreach($values as $value){
+        $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
+        foreach($Checks as $Check){
+            if((int)$Check['status']!==1){
+                $judgment=true;
+                $tabooLists[]=$Check['id'];
+            }
+        }
+    }
+    if(!empty($_POST['approvalCheck']) && !$judgment){
+        $table->begin();
+        try{
+            foreach($values as $value){
+                $table->dbAccess('UPDATE t_attendance_head SET status=3 WHERE id=:id',['id'=>$value]);
+            }
+            $_SESSION['check']=[];
+            $table->commit();
+        }
+        catch(Exception $ex){
+            $table->rollback();
+            exit();
+        }
+    }
+}
+/* 差戻処理 */
+if(isset($_POST['backModalBtn'])){
+    $values=explode(",",$_POST['backCheck']);
+    $_SESSION['check']=$values;
+    if($_POST['backReason']!==''){
+        foreach($values as $value){
+            $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
+            foreach($Checks as $Check){
+                if((int)$Check['status']!==1){
+                    $judgment=true;
+                    $tabooLists[]=$Check['id'];
+                }
+            }
+        }
+        if(!empty($_POST['backCheck'] && !$judgment)){
+            $table->begin();
+            try{
+                foreach($values as $value){
+                    $table->dbAccess('UPDATE t_attendance_head SET status=2,reject_comment=:reject_comment WHERE id=:id',['reject_comment'=>$_POST['backReason'],'id'=>$value]);
+                }
+                $_SESSION['check']=[];
+                $table->commit();
+            }
+            catch(Exception $ex){
+                $table->rollback();
+                exit();
+            }
+        }
+    }
+}
 ?>
 
 <head>
@@ -590,29 +734,30 @@ if(isset($_POST['pdfModalBtn'])){
     <title>勤怠管理</title>
     <script>
         $(function(){
+            /* 確認ボタンを押した際にチェックを保持するために、送信されたら値を入れるようにしている */
+            $(".confirmForm").submit(function(){
+                const checks=[];
+                $('input[name="checkbox"]:checked').each(function(){
+                    checks.push($(this).val());
+                })
+                $(".checks").val(checks.join(","));
+            })
             $(document).on('click','#approvalBtn',function(){
                 $(".alert").remove();
                 const checks=[];
                 $(':checkbox[name="checkbox"]:checked').each(function(){
-                   checks.push($(this).val());
+                    checks.push($(this).val());
                 })
                 if(checks.length===0){
                     $("#title").after('<div class="alert alert-danger" role="alert">勤怠を選択してください</div>');
                 }
                 else{
                     $("#approvalModal").modal("show");
+                    var status=checks.join(",");
+                    $(".approvalCheck").val(status);
                 }
             })
-            /* モーダルでエラーが出て再表示するときも値を入れるために、モーダルを開いたときに値を入れるようにしている */
-            $('#approvalModal').on('show.bs.modal',function(){
-                $(".alert").remove();
-                const checks=[];
-                $(':checkbox[name="checkbox"]:checked').each(function(){
-                   checks.push($(this).val());
-                })
-                var status=checks.join(",");
-                $(".approvalCheck").val(status);
-            })
+            
             $(document).on("click","#backBtn",function(){
                 $(".alert").remove();
                 const checks=[];
@@ -626,6 +771,7 @@ if(isset($_POST['pdfModalBtn'])){
                     $("#backModal").modal("show");
                 }
             })
+            /* モーダルでエラーが出て再表示するときもチェックを保持ために、モーダルを開いたときに値を入れるようにしている */
             $('#backModal').on('show.bs.modal',function(){
                 $(".alert").remove();
                 const checks=[];
@@ -708,105 +854,17 @@ if(isset($_POST['pdfModalBtn'])){
             </div><!-- /.container-fluid -->
         </nav>
     </header>
-    <?php
-    $select='';
-    $select0='';
-    $select1='';
-    $select2='';
-    $select3='';
-    $sql="SELECT *,t_attendance_head.id AS head_id FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
-    $where='';
-    $url='?';
-    /* 初期状態で今月の勤怠を表示させるため */
-    $_SESSION['searchDate']=$date->format('Y-m');
-    $_SESSION['management_url']=$url;
-    $_SESSION['searchStatus']='';
-    $list=[];
-    $param=[];
-    if(isset($_GET['searchBtn'])){
-        $_SESSION['searchDate']=$_GET['searchDate'];
-        $_SESSION['searchNumber']=$_GET['searchNumber'];
-        $_SESSION['searchName']=$_GET['searchName'];
-        $_SESSION['searchStatus']=$_GET['searchStatus'];
-    }
-    if(isset($_GET['cBtn'])){
-        $select='';
-        $_SESSION['searchDate']='';
-        $_SESSION['searchNumber']='';
-        $_SESSION['searchName']='';
-        $_SESSION['searchStatus']='';
-        $_SESSION['management_url']=$url;
-    }
-    if($_SESSION['searchDate']!==''){
-        $firstParts=explode("-",$_SESSION['searchDate']);
-        $yyyy=$firstParts[0];
-        $mm=$firstParts[1];
-        $yyyymm="{$yyyy}{$mm}";
-        $list[]='yyyymm=:yyyymm';
-        $param['yyyymm']=$yyyymm;
-    }
-    $url.="searchDate={$_SESSION['searchDate']}";
-    if(!empty($_SESSION['searchNumber'])){
-        $list[]='employee_no=:employee_no';
-        $param['employee_no']=$_SESSION['searchNumber'];
-    }
-    $url.="&searchNumber={$_SESSION['searchNumber']}";
-    if(!empty($_SESSION['searchName'])){
-        $list[]='employee_name LIKE :employee_name';
-        $param['employee_name']="%{$_SESSION['searchName']}%";
-    }
-    $url.="&searchName={$_SESSION['searchName']}";
-    if($_SESSION['searchStatus']!==''){
-        $list[]='status=:status';
-        $param['status']=$_SESSION['searchStatus'];
-    }
-    $url.="&searchStatus={$_SESSION['searchStatus']}";
-    $url.="&searchBtn=検索";
-    if($_SESSION['searchStatus']==0){
-        $select0='selected';
-    }
-    if($_SESSION['searchStatus']==1){
-        $select1='selected';
-    }
-    if($_SESSION['searchStatus']==2){
-        $select2='selected';
-    }
-    if($_SESSION['searchStatus']==3){
-        $select3='selected';
-    }
-    if(!empty($list)){
-        $where=implode(' and ',$list);
-        $sql.=" WHERE {$where}";
-    }
-    $rows=$table->select($sql,$param);
-    $_SESSION['management_url']=$url;
-    
-    ?>
+
     <main>
         <div class="container">
             <h1 id="title">勤怠管理</h1>
             <?php
-            $judgment=false;
-            $tabooLists=[];
-            $values=[];
-            $message="";
             if(isset($_GET['searchBtn'])){
                 if(empty($rows)){
                     echo $error->alert('alert-warning','検索結果がありませんでした');
                 }
             }
             if(isset($_POST['approvalModalBtn'])){
-                $values=explode(",",$_POST['approvalCheck']);
-                $_SESSION['check']=$values;
-                foreach($values as $value){
-                    $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
-                    foreach($Checks as $Check){
-                        if((int)$Check['status']!==1){
-                            $judgment=true;
-                            $tabooLists[]=$Check['id'];
-                        }
-                    }
-                }
                 if($judgment){
                     foreach($tabooLists as $tabooList){
                         $statusChecks=$table->select("SELECT * FROM t_attendance_head LEFT JOIN m_employee ON m_employee.id=t_attendance_head.employee_id WHERE t_attendance_head.id=:head_id",['head_id'=>$tabooList]);
@@ -817,37 +875,14 @@ if(isset($_POST['pdfModalBtn'])){
                     echo $error->alert("alert-primary","「申請中」以外が含まれています{$message}");
                 }
                 if(!empty($_POST['approvalCheck']) && !$judgment){
-                    $table->begin();
-                    try{
-                        foreach($values as $value){
-                            $table->dbAccess('UPDATE t_attendance_head SET status=3 WHERE id=:id',['id'=>$value]);
-                        }
-                        $_SESSION['check']=[];
-                        $table->commit();
-                    }
-                    catch(Exception $ex){
-                        $table->rollback();
-                        exit();
-                    }
                     echo $error->alert("alert-success","承認処理が完了しました");
                 }
             }
             if(isset($_POST['backModalBtn'])){
-                $values=explode(",",$_POST['backCheck']);
-                $_SESSION['check']=$values;
                 if($_POST['backReason']==''){
                     $error->setError('reason',"差戻理由が入力されていません");
                 }
                 else{
-                    foreach($values as $value){
-                        $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
-                        foreach($Checks as $Check){
-                            if((int)$Check['status']!==1){
-                                $judgment=true;
-                                $tabooLists[]=$Check['id'];
-                            }
-                        }
-                    }
                     if($judgment){
                         foreach($tabooLists as $tabooList){
                             $statusChecks=$table->select("SELECT * FROM t_attendance_head LEFT JOIN m_employee ON m_employee.id=t_attendance_head.employee_id WHERE t_attendance_head.id=:head_id",['head_id'=>$tabooList]);
@@ -858,24 +893,10 @@ if(isset($_POST['pdfModalBtn'])){
                         echo $error->alert("alert-primary","「申請中」以外が含まれています{$message}");
                     }
                     if(!empty($_POST['backCheck'] && !$judgment)){
-                        $table->begin();
-                        try{
-                            foreach($values as $value){
-                                $table->dbAccess('UPDATE t_attendance_head SET status=2,reject_comment=:reject_comment WHERE id=:id',['reject_comment'=>$_POST['backReason'],'id'=>$value]);
-                            }
-                            $_SESSION['check']=[];
-                            $table->commit();
-                        }
-                        catch(Exception $ex){
-                            $table->rollback();
-                            exit();
-                        }
                         echo $error->alert("alert-success","差戻処理が完了しました");
                     }
                 }
             }
-            
-            
             ?>
             <div class="card">
                 <div class="card-header">
@@ -944,16 +965,6 @@ if(isset($_POST['pdfModalBtn'])){
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php if(isset($_GET['page'])):?>
-                                    <script>
-                                        const checks=[];
-                                        $(':checkbox[name="checkbox"]:checked').each(function(){
-                                            checks.push($(this).val());
-                                        })
-                                        var status=checks.join(",");
-                                        $("#pageCheck").val(status);
-                                    </script>
-                                <?php endif?>
                                 <?php
                                 $page=1;
                                 if(isset($_GET['page'])){
@@ -974,13 +985,14 @@ if(isset($_POST['pdfModalBtn'])){
                                 $rows=$table->select($sql,$param);
                                 $countRows=$table->select($count,$param);
                                 ?>
+                                
                                 <?php foreach($rows as $row):?>
                                     <tr>
                                         <input type="hidden" class="head_id" value="<?php echo $row['head_id'];?>">
                                         <td scope="row">
                                             <div class="form-check">
                                                 <label for="checkbox">
-                                                    <input class="form-check-input" type="checkbox" name="checkbox" id="<?php echo $row['head_id'];?>" value='<?php echo $row['head_id'];?>' <?php if(isset($_POST['approvalModalBtn']) || isset($_POST['backModalBtn'])){if(in_array($row['head_id'],$_SESSION['check'])){echo 'checked';}}?>/>
+                                                    <input class="form-check-input" type="checkbox" name="checkbox" id="<?php echo $row['head_id'];?>" value='<?php echo $row['head_id'];?>' <?php if(isset($_POST['approvalModalBtn']) || isset($_POST['backModalBtn']) || isset($_POST['checkBtn'])){if(in_array($row['head_id'],$_SESSION['check'])){echo 'checked';}}?>/>
                                                 </label>
                                             </div>
                                         </td>
@@ -988,17 +1000,21 @@ if(isset($_POST['pdfModalBtn'])){
                                         <td class="number"><?php echo $row['employee_no'];?></td>
                                         <td class="name"><?php echo $row['employee_name'];?></td>
                                         <td class="status"><?php if($row['status']==0){echo "入力中";}elseif($row['status']==1){echo "申請中";}elseif($row['status']==2){echo "差戻中";}elseif($row['status']==3){echo "承認済み";}?></td>
-                                        <td>
-                                            <!-- head_idを取得するためにurlで送信している -->
-                                            <a class="btn btn-info" href="<?php echo $_SESSION['management_url'];?>&page=<?php echo $page;?>&head_id=<?php echo $row['head_id']; ?>">確認</a>
-                                        </td>
+                                        <form method="POST" class="confirmForm">
+                                            <td>
+                                                <input type="hidden" name="head_id" class="head_id" value="<?php echo $row['head_id'];?>">
+                                                <input type="hidden" name=checks class="checks">
+                                                <button type="submit" class="btn btn-info" name="checkBtn">確認</button>
+                                            </td>
+                                        </form>
                                     </tr>   
                                 <?php endforeach?>
+                                
                             </tbody>
                         </table>    
                     </div>
                 </div>
-                <input type="hidden" id="pageCheck" name="pageCheck">
+                
                 <nav class="d-flex align-items-center justify-content-center">
                     <ul class="pagination">
                         <li class="page-item <?php if($page==1){echo 'disabled';}?>">
@@ -1021,7 +1037,8 @@ if(isset($_POST['pdfModalBtn'])){
     </main>
 </body>
 
-<?php if(isset($_GET['head_id'])):?>
+<!-- 勤怠管理モーダル -->
+<?php if(isset($_POST['head_id'])):?>
     <script>
         $(function(){
             $("#checkModal").modal("show");
@@ -1037,8 +1054,8 @@ if(isset($_POST['pdfModalBtn'])){
             </div>
             <div class="modal-body">
                 <?php
-                $attendanceDetails=$table->select('SELECT * FROM t_attendance_detail WHERE head_id=:head_id',['head_id'=>$_GET['head_id']]);
-                $attendanceHeads=$table->select('SELECT * FROM t_attendance_head WHERE id=:id',['id'=>$_GET['head_id']]);
+                $attendanceDetails=$table->select('SELECT * FROM t_attendance_detail WHERE head_id=:head_id',['head_id'=>$_POST['head_id']]);
+                $attendanceHeads=$table->select('SELECT * FROM t_attendance_head WHERE id=:id',['id'=>$_POST['head_id']]);
                 foreach($attendanceHeads as $attendanceHead){
                     $date = DateTime::createFromFormat('Ym', $attendanceHead['yyyymm']);
                     $yyyy_mm=$date->format('Y-m');
@@ -1191,8 +1208,7 @@ if(isset($_POST['pdfModalBtn'])){
     </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
-
-
+<!--  承認モーダル-->
 <div class="modal fade" id="approvalModal" tabindex="-1" aria-labelledby="exampleModalLabel">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -1214,6 +1230,7 @@ if(isset($_POST['pdfModalBtn'])){
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
+<!-- 差戻モーダル -->
 <?php if(isset($_POST['backModalBtn'])):?>
     <?php if($_POST['backReason']==''):?>
         <script>
@@ -1247,6 +1264,7 @@ if(isset($_POST['pdfModalBtn'])){
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
+<!-- Excel出力モーダル -->
 <div class="modal fade" id="excelModal" tabindex="-1" aria-labelledby="exampleModalLabel">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -1268,6 +1286,7 @@ if(isset($_POST['pdfModalBtn'])){
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
+<!-- PDF出力モーダル -->
 <div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="exampleModalLabel">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -1288,3 +1307,4 @@ if(isset($_POST['pdfModalBtn'])){
     </div><!-- /.modal-content -->
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
+
