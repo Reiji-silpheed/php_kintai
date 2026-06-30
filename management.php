@@ -17,6 +17,151 @@ $date=new DateTime();
 if($_SESSION['mail']==''){
     header('Location:./login.php');
 }
+
+$select='';
+$select0='';
+$select1='';
+$select2='';
+$select3='';
+$sql="SELECT *,t_attendance_head.id AS head_id FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
+$where='';
+$url='?';
+/* 初期状態で今月の勤怠を表示させるため */
+$_SESSION['searchDate']=$date->format('Y-m');
+$_SESSION['searchNumber']='';
+$_SESSION['searchName']='';
+$_SESSION['searchStatus']='';
+$_SESSION['management_url']=$url;
+$list=[];
+$param=[];
+if(isset($_GET['searchBtn'])){
+    $_SESSION['searchDate']=$_GET['searchDate'];
+    $_SESSION['searchNumber']=$_GET['searchNumber'];
+    $_SESSION['searchName']=$_GET['searchName'];
+    $_SESSION['searchStatus']=$_GET['searchStatus'];
+}
+if(isset($_GET['cBtn'])){
+    $select='';
+    $_SESSION['searchDate']='';
+    $_SESSION['searchNumber']='';
+    $_SESSION['searchName']='';
+    $_SESSION['searchStatus']='';
+    $_SESSION['management_url']=$url;
+}
+if($_SESSION['searchDate']!==''){
+    $firstParts=explode("-",$_SESSION['searchDate']);
+    $yyyy=$firstParts[0];
+    $mm=$firstParts[1];
+    $yyyymm="{$yyyy}{$mm}";
+    $list[]='yyyymm=:yyyymm';
+    $param['yyyymm']=$yyyymm;
+}
+$url.="searchDate={$_SESSION['searchDate']}";
+if(!empty($_SESSION['searchNumber'])){
+    $list[]='employee_no=:employee_no';
+    $param['employee_no']=$_SESSION['searchNumber'];
+}
+$url.="&searchNumber={$_SESSION['searchNumber']}";
+if(!empty($_SESSION['searchName'])){
+    $list[]='employee_name LIKE :employee_name';
+    $param['employee_name']="%{$_SESSION['searchName']}%";
+}
+$url.="&searchName={$_SESSION['searchName']}";
+if($_SESSION['searchStatus']!==''){
+    $list[]='status=:status';
+    $param['status']=$_SESSION['searchStatus'];
+}
+$url.="&searchStatus={$_SESSION['searchStatus']}";
+$url.="&searchBtn=検索";
+if($_SESSION['searchStatus']==0){
+    $select0='selected';
+}
+if($_SESSION['searchStatus']==1){
+    $select1='selected';
+}
+if($_SESSION['searchStatus']==2){
+    $select2='selected';
+}
+if($_SESSION['searchStatus']==3){
+    $select3='selected';
+}
+if(!empty($list)){
+    $where=implode(' and ',$list);
+    $sql.=" WHERE {$where}";
+}
+$_SESSION['management_url']=$url;
+if(isset($_GET['page'])){
+    $_SESSION['management_url'].="&page={$_GET['page']}";
+}
+$rows=$table->select($sql,$param);
+$judgment=false;
+$tabooLists=[];
+$values=[];
+$message="";
+/* 確認処理 */
+if(isset($_POST['checkBtn'])){
+    $values=explode(",",$_POST['checks']);
+    $_SESSION['check']=$values;
+}
+/* 承認処理 */
+if(isset($_POST['approvalModalBtn'])){
+    $values=explode(",",$_POST['approvalCheck']);
+    $_SESSION['check']=$values;
+    foreach($values as $value){
+        $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
+        foreach($Checks as $Check){
+            if((int)$Check['status']!==1){
+                $judgment=true;
+                $tabooLists[]=$Check['id'];
+            }
+        }
+    }
+    if(!empty($_POST['approvalCheck']) && !$judgment){
+        $table->begin();
+        try{
+            foreach($values as $value){
+                $table->dbAccess('UPDATE t_attendance_head SET status=3 WHERE id=:id',['id'=>$value]);
+            }
+            $_SESSION['check']=[];
+            $table->commit();
+        }
+        catch(Exception $ex){
+            $table->rollback();
+            exit();
+        }
+    }
+}
+/* 差戻処理 */
+if(isset($_POST['backModalBtn'])){
+    $values=explode(",",$_POST['backCheck']);
+    $_SESSION['check']=$values;
+    if($_POST['backReason']!==''){
+        foreach($values as $value){
+            $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
+            foreach($Checks as $Check){
+                if((int)$Check['status']!==1){
+                    $judgment=true;
+                    $tabooLists[]=$Check['id'];
+                }
+            }
+        }
+        if(!empty($_POST['backCheck'] && !$judgment)){
+            $table->begin();
+            try{
+                foreach($values as $value){
+                    $table->dbAccess('UPDATE t_attendance_head SET status=2,reject_comment=:reject_comment WHERE id=:id',['reject_comment'=>$_POST['backReason'],'id'=>$value]);
+                }
+                $_SESSION['check']=[];
+                $table->commit();
+            }
+            catch(Exception $ex){
+                $table->rollback();
+                exit();
+            }
+        }
+    }
+}
+
 /* Excel出力 */
 if(isset($_POST['excelModalBtn'])){
     $fileNames=[];
@@ -574,150 +719,6 @@ if(isset($_POST['pdfModalBtn'])){
         }
         unlink($zipFile);
         exit;
-    }
-}
-
-$select='';
-$select0='';
-$select1='';
-$select2='';
-$select3='';
-$sql="SELECT *,t_attendance_head.id AS head_id FROM t_attendance_head LEFT JOIN m_employee on m_employee.id=t_attendance_head.employee_id";
-$where='';
-$url='?';
-/* 初期状態で今月の勤怠を表示させるため */
-$_SESSION['searchDate']=$date->format('Y-m');
-$_SESSION['searchNumber']='';
-$_SESSION['searchName']='';
-$_SESSION['searchStatus']='';
-$_SESSION['management_url']=$url;
-$list=[];
-$param=[];
-if(isset($_GET['searchBtn'])){
-    $_SESSION['searchDate']=$_GET['searchDate'];
-    $_SESSION['searchNumber']=$_GET['searchNumber'];
-    $_SESSION['searchName']=$_GET['searchName'];
-    $_SESSION['searchStatus']=$_GET['searchStatus'];
-}
-if(isset($_GET['cBtn'])){
-    $select='';
-    $_SESSION['searchDate']='';
-    $_SESSION['searchNumber']='';
-    $_SESSION['searchName']='';
-    $_SESSION['searchStatus']='';
-    $_SESSION['management_url']=$url;
-}
-if($_SESSION['searchDate']!==''){
-    $firstParts=explode("-",$_SESSION['searchDate']);
-    $yyyy=$firstParts[0];
-    $mm=$firstParts[1];
-    $yyyymm="{$yyyy}{$mm}";
-    $list[]='yyyymm=:yyyymm';
-    $param['yyyymm']=$yyyymm;
-}
-$url.="searchDate={$_SESSION['searchDate']}";
-if(!empty($_SESSION['searchNumber'])){
-    $list[]='employee_no=:employee_no';
-    $param['employee_no']=$_SESSION['searchNumber'];
-}
-$url.="&searchNumber={$_SESSION['searchNumber']}";
-if(!empty($_SESSION['searchName'])){
-    $list[]='employee_name LIKE :employee_name';
-    $param['employee_name']="%{$_SESSION['searchName']}%";
-}
-$url.="&searchName={$_SESSION['searchName']}";
-if($_SESSION['searchStatus']!==''){
-    $list[]='status=:status';
-    $param['status']=$_SESSION['searchStatus'];
-}
-$url.="&searchStatus={$_SESSION['searchStatus']}";
-$url.="&searchBtn=検索";
-if($_SESSION['searchStatus']==0){
-    $select0='selected';
-}
-if($_SESSION['searchStatus']==1){
-    $select1='selected';
-}
-if($_SESSION['searchStatus']==2){
-    $select2='selected';
-}
-if($_SESSION['searchStatus']==3){
-    $select3='selected';
-}
-if(!empty($list)){
-    $where=implode(' and ',$list);
-    $sql.=" WHERE {$where}";
-}
-$_SESSION['management_url']=$url;
-if(isset($_GET['page'])){
-    $_SESSION['management_url'].="&page={$_GET['page']}";
-}
-$rows=$table->select($sql,$param);
-$judgment=false;
-$tabooLists=[];
-$values=[];
-$message="";
-/* 確認処理 */
-if(isset($_POST['checkBtn'])){
-    $values=explode(",",$_POST['checks']);
-    $_SESSION['check']=$values;
-}
-/* 承認処理 */
-if(isset($_POST['approvalModalBtn'])){
-    $values=explode(",",$_POST['approvalCheck']);
-    $_SESSION['check']=$values;
-    foreach($values as $value){
-        $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
-        foreach($Checks as $Check){
-            if((int)$Check['status']!==1){
-                $judgment=true;
-                $tabooLists[]=$Check['id'];
-            }
-        }
-    }
-    if(!empty($_POST['approvalCheck']) && !$judgment){
-        $table->begin();
-        try{
-            foreach($values as $value){
-                $table->dbAccess('UPDATE t_attendance_head SET status=3 WHERE id=:id',['id'=>$value]);
-            }
-            $_SESSION['check']=[];
-            $table->commit();
-        }
-        catch(Exception $ex){
-            $table->rollback();
-            exit();
-        }
-    }
-}
-/* 差戻処理 */
-if(isset($_POST['backModalBtn'])){
-    $values=explode(",",$_POST['backCheck']);
-    $_SESSION['check']=$values;
-    if($_POST['backReason']!==''){
-        foreach($values as $value){
-            $Checks=$table->select("SELECT * FROM t_attendance_head WHERE id=:id",['id'=>$value]);
-            foreach($Checks as $Check){
-                if((int)$Check['status']!==1){
-                    $judgment=true;
-                    $tabooLists[]=$Check['id'];
-                }
-            }
-        }
-        if(!empty($_POST['backCheck'] && !$judgment)){
-            $table->begin();
-            try{
-                foreach($values as $value){
-                    $table->dbAccess('UPDATE t_attendance_head SET status=2,reject_comment=:reject_comment WHERE id=:id',['reject_comment'=>$_POST['backReason'],'id'=>$value]);
-                }
-                $_SESSION['check']=[];
-                $table->commit();
-            }
-            catch(Exception $ex){
-                $table->rollback();
-                exit();
-            }
-        }
     }
 }
 ?>
